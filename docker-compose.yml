@@ -1,5 +1,3 @@
-version: "2.27.0"
-
 services:
   zukudb:
     image: postgres:alpine
@@ -11,7 +9,6 @@ services:
       - POSTGRES_USER=${UserName}
       - POSTGRES_PASSWORD=${Password}
       - POSTGRES_DB=${DBName}
-
     volumes:
       - zuko-data:/var/lib/postgresql/data
 

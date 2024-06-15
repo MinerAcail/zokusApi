@@ -11,14 +11,80 @@ import (
 	"github.com/mineracail/zokus/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+// CreateUser is the resolver for the createUser field.
+func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (*model.User, error) {
+	user := &model.User{
+		Number: input.Name,
+		Name:   input.Number,
+	}
+
+	// Save the user to the database using your preferred ORM-
+	if err := r.DB.Create(user).Error; err != nil {
+		return nil, fmt.Errorf("failed to save user to the database")
+	}
+	return user, nil
 }
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+// GetUser is the resolver for the getUser field.
+func (r *queryResolver) GetUser(ctx context.Context) (*model.User, error) {
+	var user model.User
+
+	if err := r.DB.Where("name = ?", "123").Order("created_at DESC").Find(&user).Error; err != nil {
+		// Handle the error, such as logging or returning an error response.
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetAllUser is the resolver for the getAllUser field.
+func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
+	var user []*model.User
+	if err := r.DB.Order("created_at DESC").Find(&user).Error; err != nil {
+		// Handle the error, such as logging or returning an error response.
+		return nil, err
+	}
+	return user, nil
+}
+
+// ID is the resolver for the id field.
+func (r *userResolver) ID(ctx context.Context, obj *model.User) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ID is the resolver for the id field.
+func (r *userWithItProductResolver) ID(ctx context.Context, obj *model.UserWithItProduct) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ID is the resolver for the id field.
+func (r *venderResolver) ID(ctx context.Context, obj *model.Vender) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ID is the resolver for the id field.
+func (r *venderWithItProductResolver) ID(ctx context.Context, obj *model.VenderWithItProduct) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ID is the resolver for the id field.
+func (r *newProductResolver) ID(ctx context.Context, obj *model.NewProduct) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+// ImageUrls is the resolver for the imageUrls field.
+func (r *newProductResolver) ImageUrls(ctx context.Context, obj *model.NewProduct) ([]string, error) {
+	return obj.ImageUrls, nil
+}
+
+// VenderID is the resolver for the venderId field.
+func (r *newProductResolver) VenderID(ctx context.Context, obj *model.NewProduct) (string, error) {
+	id := obj.VenderID.String()
+	return id, nil
 }
 
 // Mutation returns MutationResolver implementation.
@@ -27,5 +93,29 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// User returns UserResolver implementation.
+func (r *Resolver) User() UserResolver { return &userResolver{r} }
+
+// UserWithItProduct returns UserWithItProductResolver implementation.
+func (r *Resolver) UserWithItProduct() UserWithItProductResolver {
+	return &userWithItProductResolver{r}
+}
+
+// Vender returns VenderResolver implementation.
+func (r *Resolver) Vender() VenderResolver { return &venderResolver{r} }
+
+// VenderWithItProduct returns VenderWithItProductResolver implementation.
+func (r *Resolver) VenderWithItProduct() VenderWithItProductResolver {
+	return &venderWithItProductResolver{r}
+}
+
+// NewProduct returns NewProductResolver implementation.
+func (r *Resolver) NewProduct() NewProductResolver { return &newProductResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }
+type userWithItProductResolver struct{ *Resolver }
+type venderResolver struct{ *Resolver }
+type venderWithItProductResolver struct{ *Resolver }
+type newProductResolver struct{ *Resolver }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,10 +11,12 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/mineracail/zokus/database"
 	"github.com/mineracail/zokus/graph"
+	"github.com/mineracail/zokus/graph/model"
+	"github.com/mineracail/zokus/helper"
 	"gorm.io/gorm"
 )
 
-const defaultPort = "8080"
+const defaultPort = "3001"
 
 type Product struct {
 	gorm.Model
@@ -23,14 +26,31 @@ type Product struct {
 
 // PerformMigrations performs database migrations
 func PerformMigrations(db *gorm.DB) error {
-	err := db.AutoMigrate(&Product{})
+	// Read the init.sql file
+	sqlFile, err := helper.ReadFile("database/init.sql")
 	if err != nil {
-		return err
+		log.Fatalf("Err: %v", err)
+	}
+	// Execute the SQL commands in the file
+	if err := db.Exec(string(sqlFile)).Error; err != nil {
+		return fmt.Errorf("failed to execute SQL commands from init.sql: %w", err)
+	}
+
+	// Run GORM AutoMigrate for your models
+	if err := db.AutoMigrate(
+		&Product{}, 
+		&model.User{},
+		&model.Vender{},
+		&model.NewProduct{},
+		// &model.UserWithItProduct{},
+		// &model.VenderWithItProduct{},
+		); err != nil {
+		return fmt.Errorf("failed to run AutoMigrate: %w", err)
 	}
 	return nil
 }
 func main() {
-	port := os.Getenv("PORT")
+	port := os.Getenv("Port")
 	if port == "" {
 		port = defaultPort
 	}
@@ -39,7 +59,7 @@ func main() {
 	dbPassword := os.Getenv("Password")
 	dbName := os.Getenv("DBName")
 	dbHost := os.Getenv("Host") // Use service name in Docker Compose
-	dbPort := "5432"     // Default PostgreSQL port
+	dbPort := "5432"            // Default PostgreSQL port
 
 	// Configure database connection using database.Config
 	config := &database.Config{

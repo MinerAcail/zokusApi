@@ -1,0 +1,17 @@
+{
+      "version": "2.0.0",
+      "tasks": [
+        
+        {
+          "label": "Generate GraphQL",
+          "type": "shell",
+          "command": "go",
+          "args": ["run", "github.com/99designs/gqlgen", "generate"],
+          "group": {
+            "kind": "build",
+            "isDefault": false
+          }
+        }
+      ]
+    }
+    
