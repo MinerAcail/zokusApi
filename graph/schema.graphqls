@@ -28,25 +28,47 @@ type newProduct {
   imageUrls: [String!]!
   venderId: String!
 }
-type UserWithItProduct {
+input ProductInput {
+  name: String!
+  price: String!
+  state: ProductState!
+  title: String!
+  brand: String!
+  imageUrls: [String!]!
+  venderId: String!
+}
+enum ProductState {
+  ACTIVE
+  INACTIVE
+}
+
+
+type UserOrderProducts {
   id: String!
   user: User
+  userId: String!
   product: [newProduct]
+  quantity: String!
   isCompleted: Boolean
   createdAt: Time
   updatedAt: Time
 }
 
-type VenderWithItProduct {
+type ProductRequest {
   id: String!
-  user: Vender
-  product: [newProduct]
-  createdAt: Time
-  updatedAt: Time
+  user: User
+  userId: String!
+  Vender: Vender!
+  VenderId: String!
+  description: String
+  imageUrls: [String]
+  createdAt: Time!
+  updatedAt: Time!
 }
-
-
-
+type systeminfor {
+  bdtable: String!
+  dbname: String!
+}
 input UserInput {
   name: String!
   number: String!
@@ -55,6 +77,7 @@ input UserInput {
 type Query {
   getUser: User!
   getAllUser: [User!]!
+  getAllsysteminfor: systeminfor!
 }
 
 input NewUser {
@@ -64,4 +87,7 @@ input NewUser {
 
 type Mutation {
   createUser(input: NewUser!): User!
+  createVender(input: NewUser!): Vender!
+  createPorduct(input: ProductInput!): newProduct!
+
 }

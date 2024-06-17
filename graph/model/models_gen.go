@@ -2,6 +2,12 @@
 
 package model
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
+
 type Mutation struct {
 }
 
@@ -10,10 +16,66 @@ type NewUser struct {
 	Number string `json:"number"`
 }
 
+type ProductInput struct {
+	Name      string       `json:"name"`
+	Price     string       `json:"price"`
+	State     ProductState `json:"state"`
+	Title     string       `json:"title"`
+	Brand     string       `json:"brand"`
+	ImageUrls []string     `json:"imageUrls"`
+	VenderID  string       `json:"venderId"`
+}
+
 type Query struct {
 }
 
 type UserInput struct {
 	Name   string `json:"name"`
 	Number string `json:"number"`
+}
+
+type Systeminfor struct {
+	Bdtable string `json:"bdtable"`
+	Dbname  string `json:"dbname"`
+}
+
+type ProductState string
+
+const (
+	ProductStateActive   ProductState = "ACTIVE"
+	ProductStateInactive ProductState = "INACTIVE"
+)
+
+var AllProductState = []ProductState{
+	ProductStateActive,
+	ProductStateInactive,
+}
+
+func (e ProductState) IsValid() bool {
+	switch e {
+	case ProductStateActive, ProductStateInactive:
+		return true
+	}
+	return false
+}
+
+func (e ProductState) String() string {
+	return string(e)
+}
+
+func (e *ProductState) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ProductState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ProductState", str)
+	}
+	return nil
+}
+
+func (e ProductState) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

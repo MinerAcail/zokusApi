@@ -49,10 +49,34 @@ type UserWithItProduct struct {
 	UpdatedAt   *time.Time    `json:"updatedAt,omitempty"`
 }
 
+// UserOrderProducts model
+type UserOrderProducts struct {
+	ID          uuid.UUID     `gorm:"type:uuid;default:uuid_generate_v4()"`
+	User        *User          `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	UserID      uuid.UUID      `gorm:"type:uuid" json:"userId"`
+	Product     []*NewProduct `gorm:"many2many:user_order_products;" json:"product,omitempty"`
+	Quantity    string        `json:"quantity"`
+	IsCompleted *bool         `json:"isCompleted,omitempty"`
+	CreatedAt   *time.Time    `json:"createdAt,omitempty"`
+	UpdatedAt   *time.Time    `json:"updatedAt,omitempty"`
+}
 type VenderWithItProduct struct {
 	ID   uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4()"`
 	User      *Vender       `json:"user,omitempty"`
 	Product   []*NewProduct `json:"product,omitempty"`
 	CreatedAt *time.Time    `json:"createdAt,omitempty"`
 	UpdatedAt *time.Time    `json:"updatedAt,omitempty"`
+}
+
+type ProductRequest struct {
+	ID   uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4()"`
+	User        *User          `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	UserID      uuid.UUID      `gorm:"type:uuid" json:"userId"`
+	Vender      *Vender        `gorm:"foreignKey:VenderID" json:"vender,omitempty"`
+	VenderID    uuid.UUID      `gorm:"type:uuid" json:"venderId"`
+ // VenderID field to link to the Vender	
+	Description *string   `json:"description,omitempty"`
+	ImageUrls   []*string `json:"imageUrls,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
