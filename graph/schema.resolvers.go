@@ -10,13 +10,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/model"
+	"github.com/mineracail/zokus/helper"
 )
 
 // CreateUser is the resolver for the createUser field.
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (*model.User, error) {
 	user := &model.User{
-		Number: input.Name,
-		Name:   input.Number,
+		Number: input.Number,
+		Name:   input.Name,
 	}
 
 	// Save the user to the database using your preferred ORM-
@@ -24,6 +25,42 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 		return nil, fmt.Errorf("failed to save user to the database")
 	}
 	return user, nil
+}
+
+// DelectUserByID is the resolver for the delectUserById field.
+func (r *mutationResolver) DelectUserByID(ctx context.Context, id string) (*bool, error) {
+	var user model.User
+
+	// Delete entity by ID
+	if err := helper.DeleteByID(r.DB, &user, id); err != nil {
+		return nil, err
+	}
+
+	return &helper.IsTrue, nil
+}
+
+// DelectVendorByID is the resolver for the delectVendorById field.
+func (r *mutationResolver) DelectVendorByID(ctx context.Context, id string) (*bool, error) {
+	var vendor model.Vendor
+
+	// Delete entity by ID
+	if err := helper.DeleteByID(r.DB, &vendor, id); err != nil {
+		return nil, err
+	}
+
+	return &helper.IsTrue, nil
+}
+
+// DelectProductByID is the resolver for the delectProductById field.
+func (r *mutationResolver) DelectProductByID(ctx context.Context, id string) (*bool, error) {
+	var product model.Product
+
+	// Delete entity by ID
+	if err := helper.DeleteByID(r.DB, &product, id); err != nil {
+		return nil, err
+	}
+
+	return &helper.IsTrue, nil
 }
 
 // DelectTable is the resolver for the delectTable field.
@@ -34,8 +71,8 @@ func (r *mutationResolver) DelectTable(ctx context.Context) (bool, error) {
 // CreateVendor is the resolver for the createVendor field.
 func (r *mutationResolver) CreateVendor(ctx context.Context, input model.NewUser) (*model.Vendor, error) {
 	vendor := &model.Vendor{
-		Number: input.Name,
-		Name:   input.Number,
+		Number: input.Number,
+		Name:   input.Name,
 	}
 
 	// Save the vendor to the database using your preferred ORM-
@@ -138,8 +175,13 @@ func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
 }
 
 // GetAllVendor is the resolver for the getAllVendor field.
-func (r *queryResolver) GetAllVendor(ctx context.Context) ([]*model.User, error) {
-	panic(fmt.Errorf("not implemented: GetAllVendor - getAllVendor"))
+func (r *queryResolver) GetAllVendor(ctx context.Context) ([]*model.Vendor, error) {
+	var vendor []*model.Vendor
+	if err := r.DB.Order("created_at DESC").Find(&vendor).Error; err != nil {
+		// Handle the error, such as logging or returning an error response.
+		return nil, err
+	}
+	return vendor, nil
 }
 
 // GetAllsysteminfor is the resolver for the getAllsysteminfor field.
@@ -187,7 +229,8 @@ func (r *userOrderResolver) Product(ctx context.Context, obj *model.UserOrder) (
 
 // ID is the resolver for the id field.
 func (r *vendorResolver) ID(ctx context.Context, obj *model.Vendor) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // Mutation returns MutationResolver implementation.

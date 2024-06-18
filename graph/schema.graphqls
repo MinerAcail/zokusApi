@@ -78,7 +78,7 @@ input UserInput {
 type Query {
   getUser: User!
   getAllUser: [User!]!
-  getAllVendor: [User!]!
+  getAllVendor: [Vendor!]!
   getAllsysteminfor: systeminfor!
 }
 
@@ -89,6 +89,9 @@ input NewUser {
 
 type Mutation {
   createUser(input: NewUser!): User!
+  delectUserById(id: String!): Boolean
+  delectVendorById(id: String!): Boolean
+  delectProductById(id: String!): Boolean
   delectTable: Boolean!
   createVendor(input: NewUser!): Vendor!
   createPorduct(input: ProductInput!): Product!

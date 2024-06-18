@@ -54,10 +54,13 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Mutation struct {
-		CreatePorduct func(childComplexity int, input model.ProductInput) int
-		CreateUser    func(childComplexity int, input model.NewUser) int
-		CreateVendor  func(childComplexity int, input model.NewUser) int
-		DelectTable   func(childComplexity int) int
+		CreatePorduct     func(childComplexity int, input model.ProductInput) int
+		CreateUser        func(childComplexity int, input model.NewUser) int
+		CreateVendor      func(childComplexity int, input model.NewUser) int
+		DelectProductByID func(childComplexity int, id string) int
+		DelectTable       func(childComplexity int) int
+		DelectUserByID    func(childComplexity int, id string) int
+		DelectVendorByID  func(childComplexity int, id string) int
 	}
 
 	Product struct {
@@ -129,6 +132,9 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.NewUser) (*model.User, error)
+	DelectUserByID(ctx context.Context, id string) (*bool, error)
+	DelectVendorByID(ctx context.Context, id string) (*bool, error)
+	DelectProductByID(ctx context.Context, id string) (*bool, error)
 	DelectTable(ctx context.Context) (bool, error)
 	CreateVendor(ctx context.Context, input model.NewUser) (*model.Vendor, error)
 	CreatePorduct(ctx context.Context, input model.ProductInput) (*model.Product, error)
@@ -151,7 +157,7 @@ type ProductRequestResolver interface {
 type QueryResolver interface {
 	GetUser(ctx context.Context) (*model.User, error)
 	GetAllUser(ctx context.Context) ([]*model.User, error)
-	GetAllVendor(ctx context.Context) ([]*model.User, error)
+	GetAllVendor(ctx context.Context) ([]*model.Vendor, error)
 	GetAllsysteminfor(ctx context.Context) (*model.Systeminfor, error)
 }
 type UserResolver interface {
@@ -222,12 +228,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateVendor(childComplexity, args["input"].(model.NewUser)), true
 
+	case "Mutation.delectProductById":
+		if e.complexity.Mutation.DelectProductByID == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_delectProductById_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DelectProductByID(childComplexity, args["id"].(string)), true
+
 	case "Mutation.delectTable":
 		if e.complexity.Mutation.DelectTable == nil {
 			break
 		}
 
 		return e.complexity.Mutation.DelectTable(childComplexity), true
+
+	case "Mutation.delectUserById":
+		if e.complexity.Mutation.DelectUserByID == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_delectUserById_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DelectUserByID(childComplexity, args["id"].(string)), true
+
+	case "Mutation.delectVendorById":
+		if e.complexity.Mutation.DelectVendorByID == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_delectVendorById_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DelectVendorByID(childComplexity, args["id"].(string)), true
 
 	case "Product.brand":
 		if e.complexity.Product.Brand == nil {
@@ -716,6 +758,51 @@ func (ec *executionContext) field_Mutation_createVendor_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_delectProductById_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_delectUserById_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_delectVendorById_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -832,6 +919,162 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_delectUserById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_delectUserById(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DelectUserByID(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_delectUserById(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_delectUserById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_delectVendorById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_delectVendorById(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DelectVendorByID(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_delectVendorById(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_delectVendorById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_delectProductById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_delectProductById(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DelectProductByID(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_delectProductById(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_delectProductById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1941,9 +2184,9 @@ func (ec *executionContext) _Query_getAllVendor(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.User)
+	res := resTmp.([]*model.Vendor)
 	fc.Result = res
-	return ec.marshalNUser2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserᚄ(ctx, field.Selections, res)
+	return ec.marshalNVendor2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendorᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getAllVendor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1955,19 +2198,23 @@ func (ec *executionContext) fieldContext_Query_getAllVendor(_ context.Context, f
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_Vendor_id(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
+				return ec.fieldContext_Vendor_name(ctx, field)
 			case "number":
-				return ec.fieldContext_User_number(ctx, field)
+				return ec.fieldContext_Vendor_number(ctx, field)
 			case "pin":
-				return ec.fieldContext_User_pin(ctx, field)
+				return ec.fieldContext_Vendor_pin(ctx, field)
+			case "product":
+				return ec.fieldContext_Vendor_product(ctx, field)
+			case "isCompleted":
+				return ec.fieldContext_Vendor_isCompleted(ctx, field)
 			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
+				return ec.fieldContext_Vendor_createdAt(ctx, field)
 			case "updatedAt":
-				return ec.fieldContext_User_updatedAt(ctx, field)
+				return ec.fieldContext_Vendor_updatedAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Vendor", field.Name)
 		},
 	}
 	return fc, nil
@@ -5163,6 +5410,18 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "delectUserById":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_delectUserById(ctx, field)
+			})
+		case "delectVendorById":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_delectVendorById(ctx, field)
+			})
+		case "delectProductById":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_delectProductById(ctx, field)
+			})
 		case "delectTable":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_delectTable(ctx, field)
@@ -6575,6 +6834,50 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋmineracailᚋzokusᚋ
 
 func (ec *executionContext) marshalNVendor2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx context.Context, sel ast.SelectionSet, v model.Vendor) graphql.Marshaler {
 	return ec._Vendor(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNVendor2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendorᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Vendor) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNVendor2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNVendor2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx context.Context, sel ast.SelectionSet, v *model.Vendor) graphql.Marshaler {
