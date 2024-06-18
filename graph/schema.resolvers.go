@@ -70,17 +70,21 @@ func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.Produc
 
 // ID is the resolver for the id field.
 func (r *productResolver) ID(ctx context.Context, obj *model.Product) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // ImageUrls is the resolver for the imageUrls field.
 func (r *productResolver) ImageUrls(ctx context.Context, obj *model.Product) ([]string, error) {
-	panic(fmt.Errorf("not implemented: ImageUrls - imageUrls"))
+	// Convert pq.StringArray to []string
+	url := []string(obj.ImageUrls)
+	return url, nil
 }
 
 // VenderID is the resolver for the venderId field.
 func (r *productResolver) VenderID(ctx context.Context, obj *model.Product) (string, error) {
-	panic(fmt.Errorf("not implemented: VenderID - venderId"))
+	id := obj.VenderID.String()
+	return id, nil
 }
 
 // ID is the resolver for the id field.
@@ -97,13 +101,19 @@ func (r *productRequestResolver) UserID(ctx context.Context, obj *model.ProductR
 
 // VenderID is the resolver for the VenderId field.
 func (r *productRequestResolver) VenderID(ctx context.Context, obj *model.ProductRequest) (string, error) {
-	id := obj.UserID.String()
+	id := obj.VenderID.String()
 	return id, nil
 }
 
 // ImageUrls is the resolver for the imageUrls field.
 func (r *productRequestResolver) ImageUrls(ctx context.Context, obj *model.ProductRequest) ([]*string, error) {
-	panic(fmt.Errorf("not implemented: ImageUrls - imageUrls"))
+	// iterate over the pq.StringArray, convert each string to a pointer, and append it to the result slice.
+	var eachArray []*string
+    for _, url := range obj.ImageUrls {
+        urlCopy := url 
+        eachArray = append(eachArray, &urlCopy)
+    }
+    return eachArray, nil
 }
 
 // GetUser is the resolver for the getUser field.
@@ -155,12 +165,14 @@ func (r *userResolver) ID(ctx context.Context, obj *model.User) (string, error) 
 
 // ID is the resolver for the id field.
 func (r *userOrderResolver) ID(ctx context.Context, obj *model.UserOrder) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // UserID is the resolver for the userId field.
 func (r *userOrderResolver) UserID(ctx context.Context, obj *model.UserOrder) (string, error) {
-	panic(fmt.Errorf("not implemented: UserID - userId"))
+	id := obj.UserID.String()
+	return id, nil
 }
 
 // Product is the resolver for the product field.

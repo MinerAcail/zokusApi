@@ -29,6 +29,5 @@ func (r *ProductResolver) ImageUrls(ctx context.Context, obj *model.Product) ([]
 	return url, nil
 }
 func (r *ProductResolver) VenderID(ctx context.Context, obj *model.Product) (string, error) {
-	id := obj.VenderID.String()
-	return id, nil
+	
 }

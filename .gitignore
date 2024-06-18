@@ -33,7 +33,6 @@ go.sum
 # gqlgen generated files
 graph/generated/
 graph/model/generated/
-
 # Environment variables
 .env
 
