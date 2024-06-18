@@ -18,12 +18,6 @@ import (
 
 const defaultPort = "3001"
 
-type Product struct {
-	gorm.Model
-	Code  string
-	Price uint
-}
-
 // PerformMigrations performs database migrations
 func PerformMigrations(db *gorm.DB) error {
 	// Read the init.sql file
@@ -38,14 +32,13 @@ func PerformMigrations(db *gorm.DB) error {
 
 	// Run GORM AutoMigrate for your models
 	if err := db.AutoMigrate(
-		&Product{}, 
 		&model.User{},
 		&model.Vender{},
-		&model.NewProduct{},
-		&model.UserOrderProducts{},
-		// &model.ProductRequest{},
-		// &model.{},
-		); err != nil {
+		&model.Product{},
+		&model.UserOrder{},
+		&model.ProductRequest{},
+	// &model.{},
+	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
 	}
 	return nil

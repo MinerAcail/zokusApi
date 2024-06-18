@@ -1,1 +1,63 @@
-    
+    # Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output of the Go compiler
+*.out
+
+# Temporary files and directories
+tmp/
+*.tmp
+*.log
+*.swp
+*.swo
+*.bak
+*.old
+*.orig
+
+# Directories for IDEs and editors
+.vscode/
+.idea/
+*.iml
+
+
+
+# Go specific
+go.sum
+
+# gqlgen generated files
+graph/generated/
+graph/model/generated/
+
+# Environment variables
+.env
+
+# Docker
+docker-compose.override.yml
+docker-compose.override.yaml
+Dockerfile.dev
+.docker/
+
+# Database
+database/*.db
+database/*.sqlite
+database/*.log
+
+# Ignore any other config or secret files
+config/
+secrets/
+
+# macOS specific
+.DS_Store
+
+# Windows specific
+Thumbs.db
+desktop.ini
+
+# Linux specific
+*~

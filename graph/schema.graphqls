@@ -13,12 +13,12 @@ type Vender {
   name: String!
   number: String!
   pin: String
-  product: [newProduct]
+  product: [Product]
   isCompleted: Boolean
   createdAt: Time
   updatedAt: Time
 }
-type newProduct {
+type Product {
   id: String!
   name: String!
   price: String!
@@ -43,11 +43,12 @@ enum ProductState {
 }
 
 
-type UserOrderProducts {
+type UserOrder {
   id: String!
   user: User
   userId: String!
-  product: [newProduct]
+  product: [Product]
+  # productId: String
   quantity: String!
   isCompleted: Boolean
   createdAt: Time
@@ -87,7 +88,8 @@ input NewUser {
 
 type Mutation {
   createUser(input: NewUser!): User!
+  delectTable: Boolean!
   createVender(input: NewUser!): Vender!
-  createPorduct(input: ProductInput!): newProduct!
+  createPorduct(input: ProductInput!): Product!
 
 }

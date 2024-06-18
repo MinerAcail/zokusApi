@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/model"
 )
 
@@ -25,29 +26,84 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 	return user, nil
 }
 
+// DelectTable is the resolver for the delectTable field.
+func (r *mutationResolver) DelectTable(ctx context.Context) (bool, error) {
+	panic(fmt.Errorf("not implemented: DelectTable - delectTable"))
+}
+
 // CreateVender is the resolver for the createVender field.
 func (r *mutationResolver) CreateVender(ctx context.Context, input model.NewUser) (*model.Vender, error) {
-	panic(fmt.Errorf("not implemented: CreateVender - createVender"))
+	vender := &model.Vender{
+		Number: input.Name,
+		Name:   input.Number,
+	}
+
+	// Save the vender to the database using your preferred ORM-
+	if err := r.DB.Create(vender).Error; err != nil {
+		return nil, fmt.Errorf("failed to save vender to the database")
+	}
+	return vender, nil
 }
 
 // CreatePorduct is the resolver for the createPorduct field.
-func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.ProductInput) (*model.NewProduct, error) {
-	panic(fmt.Errorf("not implemented: CreatePorduct - createPorduct"))
+func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.ProductInput) (*model.Product, error) {
+	// Parse the UUID separately
+	uuid, err := uuid.Parse(input.VenderID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Leader ID: %w", err)
+	}
+	user := &model.Product{
+		Name:     input.Name,
+		Price:    input.Price,
+		State:    input.Name,
+		Brand:    input.Name,
+		Title:    input.Name,
+		VenderID: uuid,
+	}
+
+	// Save the user to the database using your preferred ORM-
+	if err := r.DB.Create(user).Error; err != nil {
+		return nil, fmt.Errorf("failed to save user to the database")
+	}
+	return user, nil
+}
+
+// ID is the resolver for the id field.
+func (r *productResolver) ID(ctx context.Context, obj *model.Product) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
+// ImageUrls is the resolver for the imageUrls field.
+func (r *productResolver) ImageUrls(ctx context.Context, obj *model.Product) ([]string, error) {
+	panic(fmt.Errorf("not implemented: ImageUrls - imageUrls"))
+}
+
+// VenderID is the resolver for the venderId field.
+func (r *productResolver) VenderID(ctx context.Context, obj *model.Product) (string, error) {
+	panic(fmt.Errorf("not implemented: VenderID - venderId"))
 }
 
 // ID is the resolver for the id field.
 func (r *productRequestResolver) ID(ctx context.Context, obj *model.ProductRequest) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // UserID is the resolver for the userId field.
 func (r *productRequestResolver) UserID(ctx context.Context, obj *model.ProductRequest) (string, error) {
-	panic(fmt.Errorf("not implemented: UserID - userId"))
+	id := obj.UserID.String()
+	return id, nil
 }
 
 // VenderID is the resolver for the VenderId field.
 func (r *productRequestResolver) VenderID(ctx context.Context, obj *model.ProductRequest) (string, error) {
-	panic(fmt.Errorf("not implemented: VenderID - VenderId"))
+	id := obj.UserID.String()
+	return id, nil
+}
+
+// ImageUrls is the resolver for the imageUrls field.
+func (r *productRequestResolver) ImageUrls(ctx context.Context, obj *model.ProductRequest) ([]*string, error) {
+	panic(fmt.Errorf("not implemented: ImageUrls - imageUrls"))
 }
 
 // GetUser is the resolver for the getUser field.
@@ -93,17 +149,23 @@ func (r *queryResolver) GetAllsysteminfor(ctx context.Context) (*model.Systeminf
 
 // ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *model.User) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	id := obj.ID.String()
+	return id, nil
 }
 
 // ID is the resolver for the id field.
-func (r *userOrderProductsResolver) ID(ctx context.Context, obj *model.UserOrderProducts) (string, error) {
+func (r *userOrderResolver) ID(ctx context.Context, obj *model.UserOrder) (string, error) {
 	panic(fmt.Errorf("not implemented: ID - id"))
 }
 
 // UserID is the resolver for the userId field.
-func (r *userOrderProductsResolver) UserID(ctx context.Context, obj *model.UserOrderProducts) (string, error) {
+func (r *userOrderResolver) UserID(ctx context.Context, obj *model.UserOrder) (string, error) {
 	panic(fmt.Errorf("not implemented: UserID - userId"))
+}
+
+// Product is the resolver for the product field.
+func (r *userOrderResolver) Product(ctx context.Context, obj *model.UserOrder) ([]*model.Product, error) {
+	panic(fmt.Errorf("not implemented: Product - product"))
 }
 
 // ID is the resolver for the id field.
@@ -112,23 +174,11 @@ func (r *venderResolver) ID(ctx context.Context, obj *model.Vender) (string, err
 	return id, nil
 }
 
-// ID is the resolver for the id field.
-func (r *newProductResolver) ID(ctx context.Context, obj *model.NewProduct) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
-}
-
-// ImageUrls is the resolver for the imageUrls field.
-func (r *newProductResolver) ImageUrls(ctx context.Context, obj *model.NewProduct) ([]string, error) {
-	panic(fmt.Errorf("not implemented: ImageUrls - imageUrls"))
-}
-
-// VenderID is the resolver for the venderId field.
-func (r *newProductResolver) VenderID(ctx context.Context, obj *model.NewProduct) (string, error) {
-	panic(fmt.Errorf("not implemented: VenderID - venderId"))
-}
-
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+
+// Product returns ProductResolver implementation.
+func (r *Resolver) Product() ProductResolver { return &productResolver{r} }
 
 // ProductRequest returns ProductRequestResolver implementation.
 func (r *Resolver) ProductRequest() ProductRequestResolver { return &productRequestResolver{r} }
@@ -139,21 +189,16 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 // User returns UserResolver implementation.
 func (r *Resolver) User() UserResolver { return &userResolver{r} }
 
-// UserOrderProducts returns UserOrderProductsResolver implementation.
-func (r *Resolver) UserOrderProducts() UserOrderProductsResolver {
-	return &userOrderProductsResolver{r}
-}
+// UserOrder returns UserOrderResolver implementation.
+func (r *Resolver) UserOrder() UserOrderResolver { return &userOrderResolver{r} }
 
 // Vender returns VenderResolver implementation.
 func (r *Resolver) Vender() VenderResolver { return &venderResolver{r} }
 
-// NewProduct returns NewProductResolver implementation.
-func (r *Resolver) NewProduct() NewProductResolver { return &newProductResolver{r} }
-
 type mutationResolver struct{ *Resolver }
+type productResolver struct{ *Resolver }
 type productRequestResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
-type userOrderProductsResolver struct{ *Resolver }
+type userOrderResolver struct{ *Resolver }
 type venderResolver struct{ *Resolver }
-type newProductResolver struct{ *Resolver }
