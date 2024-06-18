@@ -18,16 +18,3 @@ only for gqlgen
 go run github.com/99designs/gqlgen generate
 
 
-
-func (r *ProductResolver) ID(ctx context.Context, obj *model.Product) (string, error) {
-	id := obj.ID.String()
-	return id, nil
-}
-func (r *ProductResolver) ImageUrls(ctx context.Context, obj *model.Product) ([]string, error) {
-	// Convert pq.StringArray to []string
-	url := []string(obj.ImageUrls)
-	return url, nil
-}
-func (r *ProductResolver) VenderID(ctx context.Context, obj *model.Product) (string, error) {
-	
-}
