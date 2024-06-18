@@ -8,7 +8,7 @@ type User {
   createdAt: Time
   updatedAt: Time
 }
-type Vender {
+type Vendor {
   id: String!
   name: String!
   number: String!
@@ -26,7 +26,7 @@ type Product {
   title: String!
   brand: String!
   imageUrls: [String!]!
-  venderId: String!
+  vendorId: String!
 }
 input ProductInput {
   name: String!
@@ -35,7 +35,7 @@ input ProductInput {
   title: String!
   brand: String!
   imageUrls: [String!]!
-  venderId: String!
+  vendorId: String!
 }
 enum ProductState {
   ACTIVE
@@ -59,8 +59,8 @@ type ProductRequest {
   id: String!
   user: User
   userId: String!
-  Vender: Vender!
-  VenderId: String!
+  Vendor: Vendor!
+  VendorId: String!
   description: String
   imageUrls: [String]
   createdAt: Time!
@@ -78,6 +78,7 @@ input UserInput {
 type Query {
   getUser: User!
   getAllUser: [User!]!
+  getAllVendor: [User!]!
   getAllsysteminfor: systeminfor!
 }
 
@@ -89,7 +90,7 @@ input NewUser {
 type Mutation {
   createUser(input: NewUser!): User!
   delectTable: Boolean!
-  createVender(input: NewUser!): Vender!
+  createVendor(input: NewUser!): Vendor!
   createPorduct(input: ProductInput!): Product!
 
 }

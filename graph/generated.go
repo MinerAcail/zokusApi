@@ -46,7 +46,7 @@ type ResolverRoot interface {
 	Query() QueryResolver
 	User() UserResolver
 	UserOrder() UserOrderResolver
-	Vender() VenderResolver
+	Vendor() VendorResolver
 }
 
 type DirectiveRoot struct {
@@ -56,7 +56,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		CreatePorduct func(childComplexity int, input model.ProductInput) int
 		CreateUser    func(childComplexity int, input model.NewUser) int
-		CreateVender  func(childComplexity int, input model.NewUser) int
+		CreateVendor  func(childComplexity int, input model.NewUser) int
 		DelectTable   func(childComplexity int) int
 	}
 
@@ -68,7 +68,7 @@ type ComplexityRoot struct {
 		Price     func(childComplexity int) int
 		State     func(childComplexity int) int
 		Title     func(childComplexity int) int
-		VenderID  func(childComplexity int) int
+		VendorID  func(childComplexity int) int
 	}
 
 	ProductRequest struct {
@@ -79,12 +79,13 @@ type ComplexityRoot struct {
 		UpdatedAt   func(childComplexity int) int
 		User        func(childComplexity int) int
 		UserID      func(childComplexity int) int
-		Vender      func(childComplexity int) int
-		VenderID    func(childComplexity int) int
+		Vendor      func(childComplexity int) int
+		VendorID    func(childComplexity int) int
 	}
 
 	Query struct {
 		GetAllUser        func(childComplexity int) int
+		GetAllVendor      func(childComplexity int) int
 		GetAllsysteminfor func(childComplexity int) int
 		GetUser           func(childComplexity int) int
 	}
@@ -109,7 +110,7 @@ type ComplexityRoot struct {
 		UserID      func(childComplexity int) int
 	}
 
-	Vender struct {
+	Vendor struct {
 		CreatedAt   func(childComplexity int) int
 		ID          func(childComplexity int) int
 		IsCompleted func(childComplexity int) int
@@ -129,27 +130,28 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.NewUser) (*model.User, error)
 	DelectTable(ctx context.Context) (bool, error)
-	CreateVender(ctx context.Context, input model.NewUser) (*model.Vender, error)
+	CreateVendor(ctx context.Context, input model.NewUser) (*model.Vendor, error)
 	CreatePorduct(ctx context.Context, input model.ProductInput) (*model.Product, error)
 }
 type ProductResolver interface {
 	ID(ctx context.Context, obj *model.Product) (string, error)
 
 	ImageUrls(ctx context.Context, obj *model.Product) ([]string, error)
-	VenderID(ctx context.Context, obj *model.Product) (string, error)
+	VendorID(ctx context.Context, obj *model.Product) (string, error)
 }
 type ProductRequestResolver interface {
 	ID(ctx context.Context, obj *model.ProductRequest) (string, error)
 
 	UserID(ctx context.Context, obj *model.ProductRequest) (string, error)
 
-	VenderID(ctx context.Context, obj *model.ProductRequest) (string, error)
+	VendorID(ctx context.Context, obj *model.ProductRequest) (string, error)
 
 	ImageUrls(ctx context.Context, obj *model.ProductRequest) ([]*string, error)
 }
 type QueryResolver interface {
 	GetUser(ctx context.Context) (*model.User, error)
 	GetAllUser(ctx context.Context) ([]*model.User, error)
+	GetAllVendor(ctx context.Context) ([]*model.User, error)
 	GetAllsysteminfor(ctx context.Context) (*model.Systeminfor, error)
 }
 type UserResolver interface {
@@ -161,8 +163,8 @@ type UserOrderResolver interface {
 	UserID(ctx context.Context, obj *model.UserOrder) (string, error)
 	Product(ctx context.Context, obj *model.UserOrder) ([]*model.Product, error)
 }
-type VenderResolver interface {
-	ID(ctx context.Context, obj *model.Vender) (string, error)
+type VendorResolver interface {
+	ID(ctx context.Context, obj *model.Vendor) (string, error)
 }
 
 type executableSchema struct {
@@ -208,17 +210,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.NewUser)), true
 
-	case "Mutation.createVender":
-		if e.complexity.Mutation.CreateVender == nil {
+	case "Mutation.createVendor":
+		if e.complexity.Mutation.CreateVendor == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createVender_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_createVendor_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateVender(childComplexity, args["input"].(model.NewUser)), true
+		return e.complexity.Mutation.CreateVendor(childComplexity, args["input"].(model.NewUser)), true
 
 	case "Mutation.delectTable":
 		if e.complexity.Mutation.DelectTable == nil {
@@ -276,12 +278,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Product.Title(childComplexity), true
 
-	case "Product.venderId":
-		if e.complexity.Product.VenderID == nil {
+	case "Product.vendorId":
+		if e.complexity.Product.VendorID == nil {
 			break
 		}
 
-		return e.complexity.Product.VenderID(childComplexity), true
+		return e.complexity.Product.VendorID(childComplexity), true
 
 	case "ProductRequest.createdAt":
 		if e.complexity.ProductRequest.CreatedAt == nil {
@@ -332,19 +334,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.ProductRequest.UserID(childComplexity), true
 
-	case "ProductRequest.Vender":
-		if e.complexity.ProductRequest.Vender == nil {
+	case "ProductRequest.Vendor":
+		if e.complexity.ProductRequest.Vendor == nil {
 			break
 		}
 
-		return e.complexity.ProductRequest.Vender(childComplexity), true
+		return e.complexity.ProductRequest.Vendor(childComplexity), true
 
-	case "ProductRequest.VenderId":
-		if e.complexity.ProductRequest.VenderID == nil {
+	case "ProductRequest.VendorId":
+		if e.complexity.ProductRequest.VendorID == nil {
 			break
 		}
 
-		return e.complexity.ProductRequest.VenderID(childComplexity), true
+		return e.complexity.ProductRequest.VendorID(childComplexity), true
 
 	case "Query.getAllUser":
 		if e.complexity.Query.GetAllUser == nil {
@@ -352,6 +354,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetAllUser(childComplexity), true
+
+	case "Query.getAllVendor":
+		if e.complexity.Query.GetAllVendor == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllVendor(childComplexity), true
 
 	case "Query.getAllsysteminfor":
 		if e.complexity.Query.GetAllsysteminfor == nil {
@@ -465,61 +474,61 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.UserOrder.UserID(childComplexity), true
 
-	case "Vender.createdAt":
-		if e.complexity.Vender.CreatedAt == nil {
+	case "Vendor.createdAt":
+		if e.complexity.Vendor.CreatedAt == nil {
 			break
 		}
 
-		return e.complexity.Vender.CreatedAt(childComplexity), true
+		return e.complexity.Vendor.CreatedAt(childComplexity), true
 
-	case "Vender.id":
-		if e.complexity.Vender.ID == nil {
+	case "Vendor.id":
+		if e.complexity.Vendor.ID == nil {
 			break
 		}
 
-		return e.complexity.Vender.ID(childComplexity), true
+		return e.complexity.Vendor.ID(childComplexity), true
 
-	case "Vender.isCompleted":
-		if e.complexity.Vender.IsCompleted == nil {
+	case "Vendor.isCompleted":
+		if e.complexity.Vendor.IsCompleted == nil {
 			break
 		}
 
-		return e.complexity.Vender.IsCompleted(childComplexity), true
+		return e.complexity.Vendor.IsCompleted(childComplexity), true
 
-	case "Vender.name":
-		if e.complexity.Vender.Name == nil {
+	case "Vendor.name":
+		if e.complexity.Vendor.Name == nil {
 			break
 		}
 
-		return e.complexity.Vender.Name(childComplexity), true
+		return e.complexity.Vendor.Name(childComplexity), true
 
-	case "Vender.number":
-		if e.complexity.Vender.Number == nil {
+	case "Vendor.number":
+		if e.complexity.Vendor.Number == nil {
 			break
 		}
 
-		return e.complexity.Vender.Number(childComplexity), true
+		return e.complexity.Vendor.Number(childComplexity), true
 
-	case "Vender.pin":
-		if e.complexity.Vender.Pin == nil {
+	case "Vendor.pin":
+		if e.complexity.Vendor.Pin == nil {
 			break
 		}
 
-		return e.complexity.Vender.Pin(childComplexity), true
+		return e.complexity.Vendor.Pin(childComplexity), true
 
-	case "Vender.product":
-		if e.complexity.Vender.Product == nil {
+	case "Vendor.product":
+		if e.complexity.Vendor.Product == nil {
 			break
 		}
 
-		return e.complexity.Vender.Product(childComplexity), true
+		return e.complexity.Vendor.Product(childComplexity), true
 
-	case "Vender.updatedAt":
-		if e.complexity.Vender.UpdatedAt == nil {
+	case "Vendor.updatedAt":
+		if e.complexity.Vendor.UpdatedAt == nil {
 			break
 		}
 
-		return e.complexity.Vender.UpdatedAt(childComplexity), true
+		return e.complexity.Vendor.UpdatedAt(childComplexity), true
 
 	case "systeminfor.bdtable":
 		if e.complexity.Systeminfor.Bdtable == nil {
@@ -692,7 +701,7 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_createVender_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_createVendor_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 model.NewUser
@@ -873,8 +882,8 @@ func (ec *executionContext) fieldContext_Mutation_delectTable(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_createVender(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createVender(ctx, field)
+func (ec *executionContext) _Mutation_createVendor(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createVendor(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -887,7 +896,7 @@ func (ec *executionContext) _Mutation_createVender(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateVender(rctx, fc.Args["input"].(model.NewUser))
+		return ec.resolvers.Mutation().CreateVendor(rctx, fc.Args["input"].(model.NewUser))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -899,12 +908,12 @@ func (ec *executionContext) _Mutation_createVender(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Vender)
+	res := resTmp.(*model.Vendor)
 	fc.Result = res
-	return ec.marshalNVender2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVender(ctx, field.Selections, res)
+	return ec.marshalNVendor2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_createVender(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_createVendor(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -913,23 +922,23 @@ func (ec *executionContext) fieldContext_Mutation_createVender(ctx context.Conte
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Vender_id(ctx, field)
+				return ec.fieldContext_Vendor_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Vender_name(ctx, field)
+				return ec.fieldContext_Vendor_name(ctx, field)
 			case "number":
-				return ec.fieldContext_Vender_number(ctx, field)
+				return ec.fieldContext_Vendor_number(ctx, field)
 			case "pin":
-				return ec.fieldContext_Vender_pin(ctx, field)
+				return ec.fieldContext_Vendor_pin(ctx, field)
 			case "product":
-				return ec.fieldContext_Vender_product(ctx, field)
+				return ec.fieldContext_Vendor_product(ctx, field)
 			case "isCompleted":
-				return ec.fieldContext_Vender_isCompleted(ctx, field)
+				return ec.fieldContext_Vendor_isCompleted(ctx, field)
 			case "createdAt":
-				return ec.fieldContext_Vender_createdAt(ctx, field)
+				return ec.fieldContext_Vendor_createdAt(ctx, field)
 			case "updatedAt":
-				return ec.fieldContext_Vender_updatedAt(ctx, field)
+				return ec.fieldContext_Vendor_updatedAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Vender", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Vendor", field.Name)
 		},
 	}
 	defer func() {
@@ -939,7 +948,7 @@ func (ec *executionContext) fieldContext_Mutation_createVender(ctx context.Conte
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createVender_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_createVendor_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -999,8 +1008,8 @@ func (ec *executionContext) fieldContext_Mutation_createPorduct(ctx context.Cont
 				return ec.fieldContext_Product_brand(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Product_imageUrls(ctx, field)
-			case "venderId":
-				return ec.fieldContext_Product_venderId(ctx, field)
+			case "vendorId":
+				return ec.fieldContext_Product_vendorId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
 		},
@@ -1327,8 +1336,8 @@ func (ec *executionContext) fieldContext_Product_imageUrls(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Product_venderId(ctx context.Context, field graphql.CollectedField, obj *model.Product) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Product_venderId(ctx, field)
+func (ec *executionContext) _Product_vendorId(ctx context.Context, field graphql.CollectedField, obj *model.Product) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Product_vendorId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1341,7 +1350,7 @@ func (ec *executionContext) _Product_venderId(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Product().VenderID(rctx, obj)
+		return ec.resolvers.Product().VendorID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1358,7 +1367,7 @@ func (ec *executionContext) _Product_venderId(ctx context.Context, field graphql
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Product_venderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Product_vendorId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Product",
 		Field:      field,
@@ -1514,8 +1523,8 @@ func (ec *executionContext) fieldContext_ProductRequest_userId(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _ProductRequest_Vender(ctx context.Context, field graphql.CollectedField, obj *model.ProductRequest) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ProductRequest_Vender(ctx, field)
+func (ec *executionContext) _ProductRequest_Vendor(ctx context.Context, field graphql.CollectedField, obj *model.ProductRequest) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProductRequest_Vendor(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1528,7 +1537,7 @@ func (ec *executionContext) _ProductRequest_Vender(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Vender, nil
+		return obj.Vendor, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1540,12 +1549,12 @@ func (ec *executionContext) _ProductRequest_Vender(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Vender)
+	res := resTmp.(*model.Vendor)
 	fc.Result = res
-	return ec.marshalNVender2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVender(ctx, field.Selections, res)
+	return ec.marshalNVendor2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_ProductRequest_Vender(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProductRequest_Vendor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ProductRequest",
 		Field:      field,
@@ -1554,30 +1563,30 @@ func (ec *executionContext) fieldContext_ProductRequest_Vender(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Vender_id(ctx, field)
+				return ec.fieldContext_Vendor_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Vender_name(ctx, field)
+				return ec.fieldContext_Vendor_name(ctx, field)
 			case "number":
-				return ec.fieldContext_Vender_number(ctx, field)
+				return ec.fieldContext_Vendor_number(ctx, field)
 			case "pin":
-				return ec.fieldContext_Vender_pin(ctx, field)
+				return ec.fieldContext_Vendor_pin(ctx, field)
 			case "product":
-				return ec.fieldContext_Vender_product(ctx, field)
+				return ec.fieldContext_Vendor_product(ctx, field)
 			case "isCompleted":
-				return ec.fieldContext_Vender_isCompleted(ctx, field)
+				return ec.fieldContext_Vendor_isCompleted(ctx, field)
 			case "createdAt":
-				return ec.fieldContext_Vender_createdAt(ctx, field)
+				return ec.fieldContext_Vendor_createdAt(ctx, field)
 			case "updatedAt":
-				return ec.fieldContext_Vender_updatedAt(ctx, field)
+				return ec.fieldContext_Vendor_updatedAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Vender", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Vendor", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _ProductRequest_VenderId(ctx context.Context, field graphql.CollectedField, obj *model.ProductRequest) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ProductRequest_VenderId(ctx, field)
+func (ec *executionContext) _ProductRequest_VendorId(ctx context.Context, field graphql.CollectedField, obj *model.ProductRequest) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProductRequest_VendorId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1590,7 +1599,7 @@ func (ec *executionContext) _ProductRequest_VenderId(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.ProductRequest().VenderID(rctx, obj)
+		return ec.resolvers.ProductRequest().VendorID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1607,7 +1616,7 @@ func (ec *executionContext) _ProductRequest_VenderId(ctx context.Context, field 
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_ProductRequest_VenderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProductRequest_VendorId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ProductRequest",
 		Field:      field,
@@ -1880,6 +1889,64 @@ func (ec *executionContext) _Query_getAllUser(ctx context.Context, field graphql
 }
 
 func (ec *executionContext) fieldContext_Query_getAllUser(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "number":
+				return ec.fieldContext_User_number(ctx, field)
+			case "pin":
+				return ec.fieldContext_User_pin(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_User_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllVendor(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllVendor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllVendor(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllVendor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -2533,8 +2600,8 @@ func (ec *executionContext) fieldContext_UserOrder_product(_ context.Context, fi
 				return ec.fieldContext_Product_brand(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Product_imageUrls(ctx, field)
-			case "venderId":
-				return ec.fieldContext_Product_venderId(ctx, field)
+			case "vendorId":
+				return ec.fieldContext_Product_vendorId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
 		},
@@ -2709,8 +2776,8 @@ func (ec *executionContext) fieldContext_UserOrder_updatedAt(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_id(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_id(ctx, field)
+func (ec *executionContext) _Vendor_id(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_id(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2723,7 +2790,7 @@ func (ec *executionContext) _Vender_id(ctx context.Context, field graphql.Collec
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Vender().ID(rctx, obj)
+		return ec.resolvers.Vendor().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2740,9 +2807,9 @@ func (ec *executionContext) _Vender_id(ctx context.Context, field graphql.Collec
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
@@ -2753,8 +2820,8 @@ func (ec *executionContext) fieldContext_Vender_id(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_name(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_name(ctx, field)
+func (ec *executionContext) _Vendor_name(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_name(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2784,9 +2851,9 @@ func (ec *executionContext) _Vender_name(ctx context.Context, field graphql.Coll
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2797,8 +2864,8 @@ func (ec *executionContext) fieldContext_Vender_name(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_number(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_number(ctx, field)
+func (ec *executionContext) _Vendor_number(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_number(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2828,9 +2895,9 @@ func (ec *executionContext) _Vender_number(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_number(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_number(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2841,8 +2908,8 @@ func (ec *executionContext) fieldContext_Vender_number(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_pin(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_pin(ctx, field)
+func (ec *executionContext) _Vendor_pin(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_pin(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2869,9 +2936,9 @@ func (ec *executionContext) _Vender_pin(ctx context.Context, field graphql.Colle
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_pin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_pin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2882,8 +2949,8 @@ func (ec *executionContext) fieldContext_Vender_pin(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_product(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_product(ctx, field)
+func (ec *executionContext) _Vendor_product(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_product(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2910,9 +2977,9 @@ func (ec *executionContext) _Vender_product(ctx context.Context, field graphql.C
 	return ec.marshalOProduct2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐProduct(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_product(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_product(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2932,8 +2999,8 @@ func (ec *executionContext) fieldContext_Vender_product(_ context.Context, field
 				return ec.fieldContext_Product_brand(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Product_imageUrls(ctx, field)
-			case "venderId":
-				return ec.fieldContext_Product_venderId(ctx, field)
+			case "vendorId":
+				return ec.fieldContext_Product_vendorId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
 		},
@@ -2941,8 +3008,8 @@ func (ec *executionContext) fieldContext_Vender_product(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_isCompleted(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_isCompleted(ctx, field)
+func (ec *executionContext) _Vendor_isCompleted(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_isCompleted(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2969,9 +3036,9 @@ func (ec *executionContext) _Vender_isCompleted(ctx context.Context, field graph
 	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_isCompleted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_isCompleted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2982,8 +3049,8 @@ func (ec *executionContext) fieldContext_Vender_isCompleted(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_createdAt(ctx, field)
+func (ec *executionContext) _Vendor_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_createdAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3010,9 +3077,9 @@ func (ec *executionContext) _Vender_createdAt(ctx context.Context, field graphql
 	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -3023,8 +3090,8 @@ func (ec *executionContext) fieldContext_Vender_createdAt(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Vender_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Vender) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Vender_updatedAt(ctx, field)
+func (ec *executionContext) _Vendor_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Vendor) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Vendor_updatedAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3051,9 +3118,9 @@ func (ec *executionContext) _Vender_updatedAt(ctx context.Context, field graphql
 	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Vender_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Vendor_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Vender",
+		Object:     "Vendor",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -4966,7 +5033,7 @@ func (ec *executionContext) unmarshalInputProductInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "price", "state", "title", "brand", "imageUrls", "venderId"}
+	fieldsInOrder := [...]string{"name", "price", "state", "title", "brand", "imageUrls", "vendorId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5015,13 +5082,13 @@ func (ec *executionContext) unmarshalInputProductInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.ImageUrls = data
-		case "venderId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("venderId"))
+		case "vendorId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("vendorId"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.VenderID = data
+			it.VendorID = data
 		}
 	}
 
@@ -5103,9 +5170,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createVender":
+		case "createVendor":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createVender(ctx, field)
+				return ec._Mutation_createVendor(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -5248,7 +5315,7 @@ func (ec *executionContext) _Product(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "venderId":
+		case "vendorId":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -5257,7 +5324,7 @@ func (ec *executionContext) _Product(ctx context.Context, sel ast.SelectionSet, 
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Product_venderId(ctx, field, obj)
+				res = ec._Product_vendorId(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -5392,12 +5459,12 @@ func (ec *executionContext) _ProductRequest(ctx context.Context, sel ast.Selecti
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "Vender":
-			out.Values[i] = ec._ProductRequest_Vender(ctx, field, obj)
+		case "Vendor":
+			out.Values[i] = ec._ProductRequest_Vendor(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "VenderId":
+		case "VendorId":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -5406,7 +5473,7 @@ func (ec *executionContext) _ProductRequest(ctx context.Context, sel ast.Selecti
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._ProductRequest_VenderId(ctx, field, obj)
+				res = ec._ProductRequest_VendorId(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -5552,6 +5619,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getAllUser(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllVendor":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllVendor(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -5855,17 +5944,17 @@ func (ec *executionContext) _UserOrder(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
-var venderImplementors = []string{"Vender"}
+var vendorImplementors = []string{"Vendor"}
 
-func (ec *executionContext) _Vender(ctx context.Context, sel ast.SelectionSet, obj *model.Vender) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, venderImplementors)
+func (ec *executionContext) _Vendor(ctx context.Context, sel ast.SelectionSet, obj *model.Vendor) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vendorImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Vender")
+			out.Values[i] = graphql.MarshalString("Vendor")
 		case "id":
 			field := field
 
@@ -5875,7 +5964,7 @@ func (ec *executionContext) _Vender(ctx context.Context, sel ast.SelectionSet, o
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Vender_id(ctx, field, obj)
+				res = ec._Vendor_id(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -5903,25 +5992,25 @@ func (ec *executionContext) _Vender(ctx context.Context, sel ast.SelectionSet, o
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "name":
-			out.Values[i] = ec._Vender_name(ctx, field, obj)
+			out.Values[i] = ec._Vendor_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "number":
-			out.Values[i] = ec._Vender_number(ctx, field, obj)
+			out.Values[i] = ec._Vendor_number(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "pin":
-			out.Values[i] = ec._Vender_pin(ctx, field, obj)
+			out.Values[i] = ec._Vendor_pin(ctx, field, obj)
 		case "product":
-			out.Values[i] = ec._Vender_product(ctx, field, obj)
+			out.Values[i] = ec._Vendor_product(ctx, field, obj)
 		case "isCompleted":
-			out.Values[i] = ec._Vender_isCompleted(ctx, field, obj)
+			out.Values[i] = ec._Vendor_isCompleted(ctx, field, obj)
 		case "createdAt":
-			out.Values[i] = ec._Vender_createdAt(ctx, field, obj)
+			out.Values[i] = ec._Vendor_createdAt(ctx, field, obj)
 		case "updatedAt":
-			out.Values[i] = ec._Vender_updatedAt(ctx, field, obj)
+			out.Values[i] = ec._Vendor_updatedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6484,18 +6573,18 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋmineracailᚋzokusᚋ
 	return ec._User(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNVender2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVender(ctx context.Context, sel ast.SelectionSet, v model.Vender) graphql.Marshaler {
-	return ec._Vender(ctx, sel, &v)
+func (ec *executionContext) marshalNVendor2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx context.Context, sel ast.SelectionSet, v model.Vendor) graphql.Marshaler {
+	return ec._Vendor(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNVender2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVender(ctx context.Context, sel ast.SelectionSet, v *model.Vender) graphql.Marshaler {
+func (ec *executionContext) marshalNVendor2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx context.Context, sel ast.SelectionSet, v *model.Vendor) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._Vender(ctx, sel, v)
+	return ec._Vendor(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

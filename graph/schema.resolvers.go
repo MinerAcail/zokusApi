@@ -31,24 +31,24 @@ func (r *mutationResolver) DelectTable(ctx context.Context) (bool, error) {
 	panic(fmt.Errorf("not implemented: DelectTable - delectTable"))
 }
 
-// CreateVender is the resolver for the createVender field.
-func (r *mutationResolver) CreateVender(ctx context.Context, input model.NewUser) (*model.Vender, error) {
-	vender := &model.Vender{
+// CreateVendor is the resolver for the createVendor field.
+func (r *mutationResolver) CreateVendor(ctx context.Context, input model.NewUser) (*model.Vendor, error) {
+	vendor := &model.Vendor{
 		Number: input.Name,
 		Name:   input.Number,
 	}
 
-	// Save the vender to the database using your preferred ORM-
-	if err := r.DB.Create(vender).Error; err != nil {
-		return nil, fmt.Errorf("failed to save vender to the database")
+	// Save the vendor to the database using your preferred ORM-
+	if err := r.DB.Create(vendor).Error; err != nil {
+		return nil, fmt.Errorf("failed to save vendor to the database")
 	}
-	return vender, nil
+	return vendor, nil
 }
 
 // CreatePorduct is the resolver for the createPorduct field.
 func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.ProductInput) (*model.Product, error) {
 	// Parse the UUID separately
-	uuid, err := uuid.Parse(input.VenderID)
+	uuid, err := uuid.Parse(input.VendorID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Leader ID: %w", err)
 	}
@@ -58,7 +58,7 @@ func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.Produc
 		State:    input.Name,
 		Brand:    input.Name,
 		Title:    input.Name,
-		VenderID: uuid,
+		VendorID: uuid,
 	}
 
 	// Save the user to the database using your preferred ORM-
@@ -81,9 +81,9 @@ func (r *productResolver) ImageUrls(ctx context.Context, obj *model.Product) ([]
 	return url, nil
 }
 
-// VenderID is the resolver for the venderId field.
-func (r *productResolver) VenderID(ctx context.Context, obj *model.Product) (string, error) {
-	id := obj.VenderID.String()
+// VendorID is the resolver for the vendorId field.
+func (r *productResolver) VendorID(ctx context.Context, obj *model.Product) (string, error) {
+	id := obj.VendorID.String()
 	return id, nil
 }
 
@@ -99,9 +99,9 @@ func (r *productRequestResolver) UserID(ctx context.Context, obj *model.ProductR
 	return id, nil
 }
 
-// VenderID is the resolver for the VenderId field.
-func (r *productRequestResolver) VenderID(ctx context.Context, obj *model.ProductRequest) (string, error) {
-	id := obj.VenderID.String()
+// VendorID is the resolver for the VendorId field.
+func (r *productRequestResolver) VendorID(ctx context.Context, obj *model.ProductRequest) (string, error) {
+	id := obj.UserID.String()
 	return id, nil
 }
 
@@ -109,11 +109,11 @@ func (r *productRequestResolver) VenderID(ctx context.Context, obj *model.Produc
 func (r *productRequestResolver) ImageUrls(ctx context.Context, obj *model.ProductRequest) ([]*string, error) {
 	// iterate over the pq.StringArray, convert each string to a pointer, and append it to the result slice.
 	var eachArray []*string
-    for _, url := range obj.ImageUrls {
-        urlCopy := url 
-        eachArray = append(eachArray, &urlCopy)
-    }
-    return eachArray, nil
+	for _, url := range obj.ImageUrls {
+		urlCopy := url
+		eachArray = append(eachArray, &urlCopy)
+	}
+	return eachArray, nil
 }
 
 // GetUser is the resolver for the getUser field.
@@ -135,6 +135,11 @@ func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
 		return nil, err
 	}
 	return user, nil
+}
+
+// GetAllVendor is the resolver for the getAllVendor field.
+func (r *queryResolver) GetAllVendor(ctx context.Context) ([]*model.User, error) {
+	panic(fmt.Errorf("not implemented: GetAllVendor - getAllVendor"))
 }
 
 // GetAllsysteminfor is the resolver for the getAllsysteminfor field.
@@ -181,9 +186,8 @@ func (r *userOrderResolver) Product(ctx context.Context, obj *model.UserOrder) (
 }
 
 // ID is the resolver for the id field.
-func (r *venderResolver) ID(ctx context.Context, obj *model.Vender) (string, error) {
-	id := obj.ID.String()
-	return id, nil
+func (r *vendorResolver) ID(ctx context.Context, obj *model.Vendor) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
 }
 
 // Mutation returns MutationResolver implementation.
@@ -204,8 +208,8 @@ func (r *Resolver) User() UserResolver { return &userResolver{r} }
 // UserOrder returns UserOrderResolver implementation.
 func (r *Resolver) UserOrder() UserOrderResolver { return &userOrderResolver{r} }
 
-// Vender returns VenderResolver implementation.
-func (r *Resolver) Vender() VenderResolver { return &venderResolver{r} }
+// Vendor returns VendorResolver implementation.
+func (r *Resolver) Vendor() VendorResolver { return &vendorResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type productResolver struct{ *Resolver }
@@ -213,4 +217,4 @@ type productRequestResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type userOrderResolver struct{ *Resolver }
-type venderResolver struct{ *Resolver }
+type vendorResolver struct{ *Resolver }

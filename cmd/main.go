@@ -33,7 +33,7 @@ func PerformMigrations(db *gorm.DB) error {
 	// Run GORM AutoMigrate for your models
 	if err := db.AutoMigrate(
 		&model.User{},
-		&model.Vender{},
+		&model.Vendor{},
 		&model.Product{},
 		&model.UserOrder{},
 		&model.ProductRequest{},

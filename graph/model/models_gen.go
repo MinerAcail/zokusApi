@@ -23,7 +23,7 @@ type ProductInput struct {
 	Title     string       `json:"title"`
 	Brand     string       `json:"brand"`
 	ImageUrls []string     `json:"imageUrls"`
-	VenderID  string       `json:"venderId"`
+	VendorID  string       `json:"vendorId"`
 }
 
 type Query struct {

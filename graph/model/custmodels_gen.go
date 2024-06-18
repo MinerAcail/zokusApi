@@ -18,12 +18,12 @@ type User struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
-type Vender struct {
+type Vendor struct {
 	ID   uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4()" json:"id"`
 	Name        string        `json:"name"`
 	Number      string        `json:"number"`
 	Pin         *string       `json:"pin,omitempty"`
-	Product     []*Product  `gorm:"foreignKey:VenderID" json:"product,omitempty"`
+	Product     []*Product  `gorm:"foreignKey:VendorID" json:"product,omitempty"`
 	IsCompleted *bool         `json:"isCompleted,omitempty"`
 	CreatedAt   *time.Time    `json:"createdAt,omitempty"`
 	UpdatedAt   *time.Time    `json:"updatedAt,omitempty"`
@@ -37,7 +37,7 @@ type Product struct {
     Title     string          `json:"title"`
     Brand     string          `json:"brand"`
     ImageUrls pq.StringArray  `gorm:"type:text[]" json:"imageUrls,omitempty"`
-    VenderID  uuid.UUID       `gorm:"type:uuid" json:"venderId"`
+    VendorID  uuid.UUID       `gorm:"type:uuid" json:"vendorId"`
 }
 
 
@@ -58,9 +58,9 @@ type UserOrder struct {
 
 
 
-type VenderWithItProduct struct {
+type VendorWithItProduct struct {
 	ID   uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4()" json:"id"`
-	User      *Vender       `json:"user,omitempty"`
+	User      *Vendor       `json:"user,omitempty"`
 	Product   []*Product `json:"product,omitempty"`
 	CreatedAt *time.Time    `json:"createdAt,omitempty"`
 	UpdatedAt *time.Time    `json:"updatedAt,omitempty"`
@@ -72,8 +72,8 @@ type ProductRequest struct {
 	ID          uuid.UUID     `gorm:"type:uuid;default:uuid_generate_v4();" json:"id"`
 	User        *User         `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	UserID      uuid.UUID     `gorm:"type:uuid" json:"userId"`
-	Vender      *Vender       `gorm:"foreignKey:VenderID" json:"vender,omitempty"`
-	VenderID    uuid.UUID     `gorm:"type:uuid" json:"venderId"`
+	Vendor      *Vendor       `gorm:"foreignKey:VendorID" json:"vendor,omitempty"`
+	VendorID    uuid.UUID     `gorm:"type:uuid" json:"vendorId"`
 	Description *string       `json:"description,omitempty"`
     ImageUrls pq.StringArray  `gorm:"type:text[]" json:"imageUrls,omitempty"`
 	CreatedAt   time.Time     `json:"createdAt"`
