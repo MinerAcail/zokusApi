@@ -63,6 +63,86 @@ func (r *mutationResolver) DelectProductByID(ctx context.Context, id string) (*b
 	return &helper.IsTrue, nil
 }
 
+// CreateUserOrder is the resolver for the createUserOrder field.
+func (r *mutationResolver) CreateUserOrder(ctx context.Context, input model.UserOrderInput) (*model.UserOrder, error) {
+	// Parse User ID from input
+	userID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid User ID: %w", err)
+	}
+
+	// Channels to receive results from goroutines
+	userChan := make(chan *model.User)
+	productsChan := make(chan []*model.Product)
+	errorChan := make(chan error)
+
+	// Fetch user concurrently
+	go func() {
+		user, err := helper.FetchUser(r.DB, userID)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		userChan <- user
+	}()
+
+	// Fetch products concurrently
+	go func() {
+		var productIDs []uuid.UUID
+		for _, pid := range input.ProductIds {
+			productID, err := uuid.Parse(pid)
+			if err != nil {
+				errorChan <- fmt.Errorf("invalid Product ID %s: %w", pid, err)
+				return
+			}
+			productIDs = append(productIDs, productID)
+		}
+
+		products, err := helper.FetchProducts(r.DB, productIDs)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		productsChan <- products
+	}()
+
+	// Collect results
+	var user *model.User
+	var products []*model.Product
+
+	for i := 0; i < 2; i++ {
+		select {
+		case u := <-userChan:
+			user = u
+		case p := <-productsChan:
+			products = p
+		case err := <-errorChan:
+			return nil, err
+		}
+	}
+
+	// Create the UserOrder
+	userOrder := &model.UserOrder{
+		UserID:      userID,
+		User:        user,
+		Quantity:    input.Quantity,
+		IsCompleted: input.IsCompleted,
+		Products:    products,
+	}
+
+	// Create the UserOrder in the database
+	if err := r.DB.Create(userOrder).Error; err != nil {
+		return nil, fmt.Errorf("failed to create user order: %v", err)
+	}
+
+	// Preload products for the created UserOrder
+	if err := r.DB.Preload("Products").First(userOrder).Error; err != nil {
+		return nil, fmt.Errorf("failed to preload products: %v", err)
+	}
+
+	return userOrder, nil
+}
+
 // DelectTable is the resolver for the delectTable field.
 func (r *mutationResolver) DelectTable(ctx context.Context) (bool, error) {
 	panic(fmt.Errorf("not implemented: DelectTable - delectTable"))
@@ -178,7 +258,7 @@ func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
 func (r *queryResolver) GetAllVendor(ctx context.Context) ([]*model.Vendor, error) {
 	var vendors []*model.Vendor
 
-	if err := helper.GetAllByModel(r.DB, &vendors,"Product"); err != nil {
+	if err := helper.GetAllByModel(r.DB, &vendors, "Product"); err != nil {
 		return nil, err
 	}
 
@@ -194,6 +274,17 @@ func (r *queryResolver) GetAllProduct(ctx context.Context) ([]*model.Product, er
 	}
 
 	return products, nil
+}
+
+// UserOrders is the resolver for the userOrders field.
+func (r *queryResolver) UserOrders(ctx context.Context) ([]*model.UserOrder, error) {
+	var productsOrdered []*model.UserOrder
+
+	if err := helper.GetAllByModel(r.DB, &productsOrdered,"User","Products"); err != nil {
+		return nil, err
+	}
+
+	return productsOrdered, nil
 }
 
 // GetAllsysteminfor is the resolver for the getAllsysteminfor field.
@@ -236,7 +327,14 @@ func (r *userOrderResolver) UserID(ctx context.Context, obj *model.UserOrder) (s
 
 // Product is the resolver for the product field.
 func (r *userOrderResolver) Product(ctx context.Context, obj *model.UserOrder) ([]*model.Product, error) {
-	panic(fmt.Errorf("not implemented: Product - product"))
+	var products []*model.Product
+
+    // Load the products associated with the given UserOrder
+    if err := r.DB.Model(obj).Association("Products").Find(&products); err != nil {
+        return nil, fmt.Errorf("failed to load products for user order: %v", err)
+    }
+
+    return products, nil
 }
 
 // ID is the resolver for the id field.

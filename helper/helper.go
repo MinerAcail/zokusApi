@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/mineracail/zokus/graph/model"
 	"gorm.io/gorm"
 )
 
@@ -97,18 +98,24 @@ func CleanPhoneNumber(phoneNumber string) string {
 	return cleanedPhoneNumber
 }
 
-func ConvertToUUIDSlice(strPtrSlice []*string) []uuid.UUID {
-	uuidSlice := make([]uuid.UUID, len(strPtrSlice))
-	for i, strPtr := range strPtrSlice {
-		if strPtr != nil {
-			uuidVal, err := uuid.Parse(*strPtr)
-			if err == nil {
-				uuidSlice[i] = uuidVal
-			} else {
-				// Handle parsing error appropriately
-				// You might want to log or return an error in your specific case
-			}
-		}
-	}
-	return uuidSlice
+
+
+
+
+
+
+func FetchUser(db *gorm.DB, userID uuid.UUID) (*model.User, error) {
+    var user model.User
+    if err := db.First(&user, "id = ?", userID).Error; err != nil {
+        return nil, fmt.Errorf("user not found: %v", err)
+    }
+    return &user, nil
+}
+
+func FetchProducts(db *gorm.DB, productIDs []uuid.UUID) ([]*model.Product, error) {
+    var products []*model.Product
+    if err := db.Where("id IN (?)", productIDs).Find(&products).Error; err != nil {
+        return nil, fmt.Errorf("some products not found: %v", err)
+    }
+    return products, nil
 }

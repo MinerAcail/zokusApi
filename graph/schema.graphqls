@@ -28,7 +28,7 @@ type Product {
   imageUrls: [String!]!
   Vendor: Vendor!
   vendorId: String!
-    createdAt: Time!
+  createdAt: Time!
   updatedAt: Time!
 }
 input ProductInput {
@@ -45,19 +45,22 @@ enum ProductState {
   INACTIVE
 }
 
-
 type UserOrder {
   id: String!
   user: User
   userId: String!
   product: [Product]
-  # productId: String
   quantity: String!
   isCompleted: Boolean
   createdAt: Time
   updatedAt: Time
 }
-
+input UserOrderInput {
+  userId: String!
+  productIds: [String!]!
+  quantity: String!
+  isCompleted: Boolean
+}
 type ProductRequest {
   id: String!
   user: User
@@ -83,6 +86,7 @@ type Query {
   getAllUser: [User!]!
   getAllVendor: [Vendor!]!
   getAllProduct: [Product!]!
+  userOrders: [UserOrder!]!
   getAllsysteminfor: systeminfor!
 }
 
@@ -96,8 +100,8 @@ type Mutation {
   delectUserById(id: String!): Boolean
   delectVendorById(id: String!): Boolean
   delectProductById(id: String!): Boolean
+  createUserOrder(input: UserOrderInput!): UserOrder!
   delectTable: Boolean!
   createVendor(input: NewUser!): Vendor!
   createPorduct(input: ProductInput!): Product!
-
 }

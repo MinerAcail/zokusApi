@@ -34,6 +34,13 @@ type UserInput struct {
 	Number string `json:"number"`
 }
 
+type UserOrderInput struct {
+	UserID      string   `json:"userId"`
+	ProductIds  []string `json:"productIds"`
+	Quantity    string   `json:"quantity"`
+	IsCompleted *bool    `json:"isCompleted,omitempty"`
+}
+
 type Systeminfor struct {
 	Bdtable string `json:"bdtable"`
 	Dbname  string `json:"dbname"`

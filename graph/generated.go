@@ -56,6 +56,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		CreatePorduct     func(childComplexity int, input model.ProductInput) int
 		CreateUser        func(childComplexity int, input model.NewUser) int
+		CreateUserOrder   func(childComplexity int, input model.UserOrderInput) int
 		CreateVendor      func(childComplexity int, input model.NewUser) int
 		DelectProductByID func(childComplexity int, id string) int
 		DelectTable       func(childComplexity int) int
@@ -95,6 +96,7 @@ type ComplexityRoot struct {
 		GetAllVendor      func(childComplexity int) int
 		GetAllsysteminfor func(childComplexity int) int
 		GetUser           func(childComplexity int) int
+		UserOrders        func(childComplexity int) int
 	}
 
 	User struct {
@@ -139,6 +141,7 @@ type MutationResolver interface {
 	DelectUserByID(ctx context.Context, id string) (*bool, error)
 	DelectVendorByID(ctx context.Context, id string) (*bool, error)
 	DelectProductByID(ctx context.Context, id string) (*bool, error)
+	CreateUserOrder(ctx context.Context, input model.UserOrderInput) (*model.UserOrder, error)
 	DelectTable(ctx context.Context) (bool, error)
 	CreateVendor(ctx context.Context, input model.NewUser) (*model.Vendor, error)
 	CreatePorduct(ctx context.Context, input model.ProductInput) (*model.Product, error)
@@ -164,6 +167,7 @@ type QueryResolver interface {
 	GetAllUser(ctx context.Context) ([]*model.User, error)
 	GetAllVendor(ctx context.Context) ([]*model.Vendor, error)
 	GetAllProduct(ctx context.Context) ([]*model.Product, error)
+	UserOrders(ctx context.Context) ([]*model.UserOrder, error)
 	GetAllsysteminfor(ctx context.Context) (*model.Systeminfor, error)
 }
 type UserResolver interface {
@@ -221,6 +225,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.NewUser)), true
+
+	case "Mutation.createUserOrder":
+		if e.complexity.Mutation.CreateUserOrder == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createUserOrder_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateUserOrder(childComplexity, args["input"].(model.UserOrderInput)), true
 
 	case "Mutation.createVendor":
 		if e.complexity.Mutation.CreateVendor == nil {
@@ -452,6 +468,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetUser(childComplexity), true
 
+	case "Query.userOrders":
+		if e.complexity.Query.UserOrders == nil {
+			break
+		}
+
+		return e.complexity.Query.UserOrders(childComplexity), true
+
 	case "User.createdAt":
 		if e.complexity.User.CreatedAt == nil {
 			break
@@ -631,6 +654,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputNewUser,
 		ec.unmarshalInputProductInput,
 		ec.unmarshalInputUserInput,
+		ec.unmarshalInputUserOrderInput,
 	)
 	first := true
 
@@ -754,6 +778,21 @@ func (ec *executionContext) field_Mutation_createPorduct_args(ctx context.Contex
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNProductInput2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐProductInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createUserOrder_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UserOrderInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNUserOrderInput2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrderInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1109,6 +1148,79 @@ func (ec *executionContext) fieldContext_Mutation_delectProductById(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_delectProductById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createUserOrder(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createUserOrder(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateUserOrder(rctx, fc.Args["input"].(model.UserOrderInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.UserOrder)
+	fc.Result = res
+	return ec.marshalNUserOrder2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrder(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createUserOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UserOrder_id(ctx, field)
+			case "user":
+				return ec.fieldContext_UserOrder_user(ctx, field)
+			case "userId":
+				return ec.fieldContext_UserOrder_userId(ctx, field)
+			case "product":
+				return ec.fieldContext_UserOrder_product(ctx, field)
+			case "quantity":
+				return ec.fieldContext_UserOrder_quantity(ctx, field)
+			case "isCompleted":
+				return ec.fieldContext_UserOrder_isCompleted(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_UserOrder_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_UserOrder_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UserOrder", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createUserOrder_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2473,6 +2585,68 @@ func (ec *executionContext) fieldContext_Query_getAllProduct(_ context.Context, 
 				return ec.fieldContext_Product_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_userOrders(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_userOrders(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().UserOrders(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.UserOrder)
+	fc.Result = res
+	return ec.marshalNUserOrder2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrderᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_userOrders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UserOrder_id(ctx, field)
+			case "user":
+				return ec.fieldContext_UserOrder_user(ctx, field)
+			case "userId":
+				return ec.fieldContext_UserOrder_userId(ctx, field)
+			case "product":
+				return ec.fieldContext_UserOrder_product(ctx, field)
+			case "quantity":
+				return ec.fieldContext_UserOrder_quantity(ctx, field)
+			case "isCompleted":
+				return ec.fieldContext_UserOrder_isCompleted(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_UserOrder_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_UserOrder_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UserOrder", field.Name)
 		},
 	}
 	return fc, nil
@@ -5646,6 +5820,54 @@ func (ec *executionContext) unmarshalInputUserInput(ctx context.Context, obj int
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUserOrderInput(ctx context.Context, obj interface{}) (model.UserOrderInput, error) {
+	var it model.UserOrderInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"userId", "productIds", "quantity", "isCompleted"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
+		case "productIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("productIds"))
+			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProductIds = data
+		case "quantity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quantity"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Quantity = data
+		case "isCompleted":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isCompleted"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsCompleted = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -5692,6 +5914,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_delectProductById(ctx, field)
 			})
+		case "createUserOrder":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createUserOrder(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "delectTable":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_delectTable(ctx, field)
@@ -6207,6 +6436,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getAllProduct(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "userOrders":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_userOrders(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -7202,6 +7453,69 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋmineracailᚋzokusᚋ
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNUserOrder2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrder(ctx context.Context, sel ast.SelectionSet, v model.UserOrder) graphql.Marshaler {
+	return ec._UserOrder(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUserOrder2ᚕᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserOrder) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNUserOrder2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrder(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUserOrder2ᚖgithubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrder(ctx context.Context, sel ast.SelectionSet, v *model.UserOrder) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._UserOrder(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNUserOrderInput2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐUserOrderInput(ctx context.Context, v interface{}) (model.UserOrderInput, error) {
+	res, err := ec.unmarshalInputUserOrderInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNVendor2githubᚗcomᚋmineracailᚋzokusᚋgraphᚋmodelᚐVendor(ctx context.Context, sel ast.SelectionSet, v model.Vendor) graphql.Marshaler {
