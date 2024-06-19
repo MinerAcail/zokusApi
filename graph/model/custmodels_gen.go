@@ -37,7 +37,10 @@ type Product struct {
     Title     string          `json:"title"`
     Brand     string          `json:"brand"`
     ImageUrls pq.StringArray  `gorm:"type:text[]" json:"imageUrls,omitempty"`
+	Vendor      *Vendor       `gorm:"foreignKey:VendorID" json:"vendor,omitempty"`
     VendorID  uuid.UUID       `gorm:"type:uuid" json:"vendorId"`
+	CreatedAt   *time.Time    `json:"createdAt,omitempty"`
+	UpdatedAt   *time.Time    `json:"updatedAt,omitempty"`
 }
 
 

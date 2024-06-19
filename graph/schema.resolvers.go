@@ -87,15 +87,16 @@ func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.Produc
 	// Parse the UUID separately
 	uuid, err := uuid.Parse(input.VendorID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Leader ID: %w", err)
+		return nil, fmt.Errorf("invalid Vendor ID: %w", err)
 	}
 	user := &model.Product{
-		Name:     input.Name,
-		Price:    input.Price,
-		State:    input.Name,
-		Brand:    input.Name,
-		Title:    input.Name,
-		VendorID: uuid,
+		Name:      input.Name,
+		Price:     input.Price,
+		State:     string(input.State),
+		Brand:     input.Brand,
+		Title:     input.Title,
+		ImageUrls: input.ImageUrls,
+		VendorID:  uuid,
 	}
 
 	// Save the user to the database using your preferred ORM-
@@ -167,8 +168,7 @@ func (r *queryResolver) GetUser(ctx context.Context) (*model.User, error) {
 // GetAllUser is the resolver for the getAllUser field.
 func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
 	var user []*model.User
-	if err := r.DB.Order("created_at DESC").Find(&user).Error; err != nil {
-		// Handle the error, such as logging or returning an error response.
+	if err := helper.GetAllByModel(r.DB, &user); err != nil {
 		return nil, err
 	}
 	return user, nil
@@ -176,12 +176,24 @@ func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
 
 // GetAllVendor is the resolver for the getAllVendor field.
 func (r *queryResolver) GetAllVendor(ctx context.Context) ([]*model.Vendor, error) {
-	var vendor []*model.Vendor
-	if err := r.DB.Order("created_at DESC").Find(&vendor).Error; err != nil {
-		// Handle the error, such as logging or returning an error response.
+	var vendors []*model.Vendor
+
+	if err := helper.GetAllByModel(r.DB, &vendors,"Product"); err != nil {
 		return nil, err
 	}
-	return vendor, nil
+
+	return vendors, nil
+}
+
+// GetAllProduct is the resolver for the getAllProduct field.
+func (r *queryResolver) GetAllProduct(ctx context.Context) ([]*model.Product, error) {
+	var products []*model.Product
+
+	if err := helper.GetAllByModel(r.DB, &products); err != nil {
+		return nil, err
+	}
+
+	return products, nil
 }
 
 // GetAllsysteminfor is the resolver for the getAllsysteminfor field.
