@@ -1,4 +1,5 @@
 scalar Time
+scalar Upload
 
 type User {
   id: String!
@@ -96,6 +97,7 @@ input NewUser {
 }
 
 type Mutation {
+   singleUpload(file: Upload!): Boolean!
   createUser(input: NewUser!): User!
   delectUserById(id: String!): Boolean
   delectVendorById(id: String!): Boolean

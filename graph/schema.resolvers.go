@@ -7,11 +7,53 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
+	"github.com/mineracail/zokus/database/redis"
 	"github.com/mineracail/zokus/graph/model"
 	"github.com/mineracail/zokus/helper"
 )
+
+// SingleUpload is the resolver for the singleUpload field.
+	func (r *mutationResolver) SingleUpload(ctx context.Context, file graphql.Upload) (bool, error) {
+		// Define the directory where the uploaded files will be stored
+		// uploadDir := "./uploads"
+
+		// Example: Convert image to byte slice
+
+		byteSlice, err := redis.ImageToByteSlice(file.File)
+		if err != nil {
+			log.Fatalf("Error converting image to byte slice: %v", err)
+		}
+		rdb := redis.ConfigureRedis()
+		// Example: Store byte slice in Redis
+		err = redis.PassByteSliceToRedis(rdb, "image_key", byteSlice)
+		if err != nil {
+			log.Fatalf("Error storing byte slice in Redis: %v", err)
+		}
+
+		// Example: Retrieve byte slice 	from Redis
+		retrievedByteSlice, err := redis.RetrieveByteSliceFromRedis(rdb, "image_key")
+		if err != nil {
+			log.Fatalf("Error retrieving byte slice from Redis: %v", err)
+		}
+
+		// Example: Convert byte slice back to image
+		outputImage, err := redis.ByteSliceToImage(retrievedByteSlice)
+		if err != nil {
+			return false, fmt.Errorf("Error converting byte slice to image: %v", err)
+		}
+
+		// Example: Pass image byte slice to FFmpeg
+		err = redis.PassImageToFfmpeg(outputImage)
+		if err != nil {
+			log.Fatalf("Error passing image to FFmpeg: %v", err)
+		}
+
+		return true, nil
+	}
 
 // CreateUser is the resolver for the createUser field.
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (*model.User, error) {
@@ -280,7 +322,7 @@ func (r *queryResolver) GetAllProduct(ctx context.Context) ([]*model.Product, er
 func (r *queryResolver) UserOrders(ctx context.Context) ([]*model.UserOrder, error) {
 	var productsOrdered []*model.UserOrder
 
-	if err := helper.GetAllByModel(r.DB, &productsOrdered,"User","Products"); err != nil {
+	if err := helper.GetAllByModel(r.DB, &productsOrdered, "User", "Products"); err != nil {
 		return nil, err
 	}
 
@@ -329,12 +371,12 @@ func (r *userOrderResolver) UserID(ctx context.Context, obj *model.UserOrder) (s
 func (r *userOrderResolver) Product(ctx context.Context, obj *model.UserOrder) ([]*model.Product, error) {
 	var products []*model.Product
 
-    // Load the products associated with the given UserOrder
-    if err := r.DB.Model(obj).Association("Products").Find(&products); err != nil {
-        return nil, fmt.Errorf("failed to load products for user order: %v", err)
-    }
+	// Load the products associated with the given UserOrder
+	if err := r.DB.Model(obj).Association("Products").Find(&products); err != nil {
+		return nil, fmt.Errorf("failed to load products for user order: %v", err)
+	}
 
-    return products, nil
+	return products, nil
 }
 
 // ID is the resolver for the id field.

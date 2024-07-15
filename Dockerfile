@@ -6,6 +6,9 @@ WORKDIR /usr/src/app
 
 # Install Air (a live-reloading tool for Go)
 RUN go install github.com/air-verse/air@latest
+# Install FFmpeg
+RUN apk update && \
+    apk add --no-cache ffmpeg
 
 # Copy the Go modules files
 COPY go.mod go.sum ./
@@ -16,5 +19,4 @@ RUN go mod download
 # Copy the rest of the application source code
 COPY . .
 
-# Run the application
-# CMD ["air", "./cmd/main.go", "-b", "0.0.0.0"]
+

@@ -9,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/mineracail/zokus/database"
 	"github.com/mineracail/zokus/graph"
 	"github.com/mineracail/zokus/graph/model"
@@ -82,6 +83,15 @@ func main() {
 
 	// Initialize the GraphQL server
 	router := chi.NewRouter()
+	// Configure CORS
+	corsConfig := cors.New(cors.Options{
+		// { "http://localhost:5173", "http://yourdomain.com", "https://anotherdomain.com"},
+		AllowedOrigins:   []string{"*"}, // You can configure specific origins here
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true,
+	})
+	router.Use(corsConfig.Handler) // Use the cors handler
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	server := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 	router.Handle("/query", server)
