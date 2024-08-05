@@ -1,0 +1,45 @@
+type Product {
+  id: String
+  name: String
+  price: String
+  state: String
+  title: String
+  brand: String
+  imageUrls: [String]
+  vendorsBucketName: String
+  Vendor: Vendor
+  vendorId: String
+  createdAt: Time
+  updatedAt: Time
+}
+input ProductInput {
+  name: String!
+  price: String!
+  state: ProductState!
+  title: String!
+  brand: String!
+}
+enum ProductState {
+  ACTIVE
+  INACTIVE
+}
+
+type ProductRequest {
+  id: String!
+  user: User
+  userId: String!
+  Vendor: Vendor!
+  VendorId: String!
+  description: String
+  imageUrls: [String]
+  createdAt: Time!
+  updatedAt: Time!
+}
+extend type Query {
+    getAllProduct: [Product!]!
+}
+
+extend type Mutation {
+  delectProductById(id: String!): Boolean
+    createPorduct(input: ProductInput!): Product!
+}

@@ -1,0 +1,26 @@
+scalar Time
+scalar Upload
+
+type systeminfor {
+  bdtable: String!
+  dbname: String!
+}
+
+type Query {
+  getID: String
+  who: Returns
+  getAllsysteminfor: systeminfor!
+}
+
+type Mutation {
+  delectTable: Boolean!
+  login(input: LoginInput!): Returns
+  memberlogin(input: LoginInput!): Returns!
+  logOut: Boolean!
+}
+
+union Returns = Vendor | User
+input LoginInput {
+  pin: String!
+  number: String
+}

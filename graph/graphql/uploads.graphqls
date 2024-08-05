@@ -1,0 +1,36 @@
+type FileUrl {
+  id: String! # Unique identifier for the file URL entry
+  vendorId: String! # ID of the vendor associated with this file
+  url: String! # The URL of the file
+  createdAt: Time # Timestamp when the file URL was created
+  updatedAt: Time # Timestamp when the file URL was last updated
+}
+type File {
+  id: String!
+  name: String!
+  content: String!
+}
+type ImageFiles {
+  overlay: String!
+  bg: String!
+  combine: String
+}
+type ItemFiles {
+  id: String!
+  vendorsBucketName: String!
+  url: String!
+}
+input UploadFile {
+  id: String!
+  file: Upload!
+}
+
+extend type Query {
+  imageUrls: [String!]!
+}
+
+extend type Mutation {
+  overLayUpload(files: [UploadFile]!): [File!]!
+  singleUpload(bgFiles: [Upload], overlayFiles: [Upload]): ImageFiles!
+  combineUpload(input: String): String
+}

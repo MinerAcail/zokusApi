@@ -1,0 +1,49 @@
+type User {
+  id: String!
+  name: String!
+  type: String
+  number: String!
+  pin: String
+  createdAt: Time
+  updatedAt: Time
+}
+
+type UserOrder {
+  id: String!
+  user: User
+  userId: String!
+  product: [Product]
+  quantity: String!
+  isCompleted: Boolean
+  createdAt: Time
+  updatedAt: Time
+}
+input UserOrderInput {
+  userId: String!
+  productIds: [String!]!
+  quantity: String!
+  isCompleted: Boolean
+}
+
+input UserInput {
+  name: String!
+  number: String!
+}
+
+input NewUser {
+  name: String!
+  number: String!
+  pin: String!
+}
+
+extend type Query {
+  getUser: User!
+  getAllUser: [User!]!
+  userOrders: [UserOrder!]!
+}
+
+extend type Mutation {
+  createUser(input: NewUser!): User!
+  delectUserById(id: String!): Boolean
+  createUserOrder(input: UserOrderInput!): UserOrder!
+}

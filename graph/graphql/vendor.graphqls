@@ -1,0 +1,26 @@
+type Vendor {
+  id: String!
+  name: String!
+  type: String
+  number: String!
+  pin: String
+  product: [Product]
+  fileUrls: [FileUrl]
+  isCompleted: Boolean
+  createdAt: Time
+  updatedAt: Time
+}
+
+
+extend type Query {
+  getVendorById(id: String!): Vendor!
+    getAllVendor: [Vendor!]!
+  getAllProductByVendor: [Product!]!
+}
+
+extend type Mutation {
+    VendorUpload(files: [Upload], input: ProductInput): Product!
+      delectVendorById(id: String!): Boolean
+  createVendor(input: NewUser!): Vendor!
+
+}
