@@ -14,6 +14,7 @@ import (
 	"github.com/mineracail/zokus/graph"
 	"github.com/mineracail/zokus/graph/model"
 	"github.com/mineracail/zokus/helper"
+	"github.com/mineracail/zokus/middleware"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +36,7 @@ func PerformMigrations(db *gorm.DB) error {
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Vendor{},
+		&model.FileURL{},
 		&model.Product{},
 		&model.UserOrder{},
 		&model.ProductRequest{},
@@ -49,6 +51,8 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
+
+	
 	//// Read environment variables
 	dbUser := os.Getenv("UserName")
 	dbPassword := os.Getenv("Password")
@@ -56,10 +60,18 @@ func main() {
 	dbHost := os.Getenv("Host") // Use service name in Docker Compose
 	dbPort := "5432"            // Default PostgreSQL port
 
+
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	// minioBucket := "your-bucket-name" // Replace with your 	 name
+
+
+
 	// Configure database connection using database.Config
 	config := &database.Config{
 		Host:     dbHost,
-		Port:     dbPort,
+		Port:     dbPort,		
 		User:     dbUser,
 		Password: dbPassword,
 		DBName:   dbName,
@@ -77,8 +89,15 @@ func main() {
 		log.Fatal("failed to perform migrations:", err)
 	}
 
+	// Initialize MinIO client
+	minioClient, err := helper.InitMinIO(minioEndpoint, minioAccessKey, minioSecretKey)
+	if err != nil {
+		log.Fatalf("failed to initialize MinIO client: %v", err)
+	}
+
 	resolver := &graph.Resolver{
 		DB: db,
+		MinIOClient: minioClient,
 	}
 
 	// Initialize the GraphQL server
@@ -86,12 +105,14 @@ func main() {
 	// Configure CORS
 	corsConfig := cors.New(cors.Options{
 		// { "http://localhost:5173", "http://yourdomain.com", "https://anotherdomain.com"},
-		AllowedOrigins:   []string{"*"}, // You can configure specific origins here
+		AllowedOrigins:   []string{"http://localhost:5173"		}, // You can configure specific origins here
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
 	router.Use(corsConfig.Handler) // Use the cors handler
+	router.Use(middleware.Middleware)
+
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	server := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 	router.Handle("/query", server)

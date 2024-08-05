@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -11,102 +12,102 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-var JwtSecret = []byte("SecretInHere") // Replace this with your own secret key
+// JwtSecret is the secret key used for signing JWT tokens.
+// Replace this with your own secret key and keep it secure.
+var JwtSecret = []byte("SecretInHere")
 
+// TokenStruct defines the structure of the JWT token claims.
 type TokenStruct struct {
 	ID    string `json:"id"`
-	Types string `json:"types"`
+	Type  string `json:"type"`
 	jwt.StandardClaims
 }
 
-// Now, let's define the IDContextKey to use as the context key for LeaderID.
+// Define context keys as custom types to avoid conflicts.
 type contextKey string
 
-const IDContextKey contextKey = "leaderID"
-const SubIDContextKey contextKey = "subsID"
-const IDoptionalContextKey contextKey = "optional1"
-const LeaderTypeContextKey contextKey = "leaderTYPE"
-const cookieAccessKeyCtx contextKey = "cookieAccessKeyCtx"
-const CookieName contextKey = "SetToken"
+const (
+	IDContextKey         contextKey = "ID"
+	UserTypeContextKey   contextKey = "userType"
+	CookieAccessKeyCtx   contextKey = "cookieAccessKeyCtx"
+	CookieName           contextKey = "SetZukoToken"
+)
 
-// ValidateToken validates the provided JWT token and returns the claims if the token is valid.
-
-// CookieAccess struct for managing cookies
+// CookieAccess struct for managing cookies.
 type CookieAccess struct {
 	Writer     http.ResponseWriter
-	UserId     string
+	UserID     string
 	IsLoggedIn bool
 }
 
-// SetToken method to write a cookie
+// SetToken writes a token to the cookie with a specified expiration time.
 func (ca *CookieAccess) SetToken(token string) {
 	http.SetCookie(ca.Writer, &http.Cookie{
-		Name:     string(CookieName),
-		Value:    token,
-		HttpOnly: true,
-		Path:     "/",
-		Expires:  time.Now().Add(24 * time.Hour), // Adjust expiration as needed
-
+		Name:     string(CookieName),             // Name of the cookie
+		Value:    token,                          // Value of the cookie, which is the authentication token
+		HttpOnly: true,                           // Indicates that the cookie is not accessible via JavaScript
+		Secure:   true,                           // Ensures the cookie is only sent over HTTPS
+		Path:     "/",                            // Path for which the cookie is valid
+		Expires:  time.Now().Add(24 * time.Hour), // Cookie expiration time set to 24 hours from now
+		SameSite: http.SameSiteStrictMode,        // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
 	})
 }
+
+// Logout removes the cookie by setting an expired cookie.
+// This effectively logs the user out by invalidating the authentication token cookie.
 func (ca *CookieAccess) Logout() error {
+	// Create a cookie with the same name but with an empty value and an expiration time in the past.
 	cookie := &http.Cookie{
-		Name:     string(CookieName),
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Expires:  time.Unix(0, 0), // Expire immediately
+		Name:     string(CookieName),      // Name of the cookie
+		Value:    "",                      // Empty value to clear the token
+		Path:     "/",                     // Path for which the cookie is valid
+		HttpOnly: true,                    // Indicates that the cookie is not accessible via JavaScript
+		Secure:   true,                    // Ensures the cookie is only sent over HTTPS
+		Expires:  time.Unix(0, 0),         // Expiration time set to the Unix epoch, effectively expiring the cookie immediately
+		SameSite: http.SameSiteStrictMode, // Helps mitigate CSRF attacks by ensuring the cookie is only sent for same-site requests
 	}
 
+	// Set the expired cookie in the response to invalidate it.
 	http.SetCookie(ca.Writer, cookie)
 
-	return nil
+	return nil // Return nil as there are no errors to handle in this case.
 }
 
-// Function to set CookieAccess object in the request context
+// setValInCtx sets the CookieAccess object in the request context.
 func setValInCtx(ctx context.Context, val interface{}) context.Context {
-
-	return context.WithValue(ctx, cookieAccessKeyCtx, val)
+	return context.WithValue(ctx, CookieAccessKeyCtx, val)
 }
 
-// Function to retrieve CookieAccess object from context
+// GetCookieAccess retrieves the CookieAccess object from the context.
 func GetCookieAccess(ctx context.Context) *CookieAccess {
-	return ctx.Value(cookieAccessKeyCtx).(*CookieAccess)
+	return ctx.Value(CookieAccessKeyCtx).(*CookieAccess)
 }
 
-// Middleware function for Chi
+// Middleware function for handling authentication and setting context values.
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookieA := CookieAccess{
-			Writer: w,
-		}
-
 		ctx := r.Context()
+		cookieA := &CookieAccess{Writer: w}
 
 		// Extract and parse the token here
 		tokenCookie, err := r.Cookie(string(CookieName))
 		if err == nil {
 			token := tokenCookie.Value
-			leaderID, leaderType, optionalClaims, err := ParseToken(token)
+			userID, userType, _, err := ParseToken(token)
 			if err == nil {
-				ctx = context.WithValue(ctx, IDContextKey, leaderID)
-				ctx = context.WithValue(ctx, LeaderTypeContextKey, leaderType)
-
-				// Set optional claims in the context using custom keys
-				for key, value := range optionalClaims {
-					ctx = context.WithValue(ctx, contextKey(key), value)
-				}
+				ctx = context.WithValue(ctx, IDContextKey, userID)
+				ctx = context.WithValue(ctx, UserTypeContextKey, userType)
 			}
 		}
 
-		ctx = setValInCtx(ctx, &cookieA)
+		ctx = setValInCtx(ctx, cookieA)
 
-		// Extract user ID from cookie or perform any necessary checks here
-
+		// Pass the request to the next handler with the updated context
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
+// ParseToken parses the provided JWT token and returns the claims if valid.
 func ParseToken(tokenStr string) (string, string, map[string]interface{}, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		return JwtSecret, nil
@@ -116,50 +117,53 @@ func ParseToken(tokenStr string) (string, string, map[string]interface{}, error)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		leaderID, ok := claims["leaderID"].(string)
+		ID, ok := claims["id"].(string)
 		if !ok {
-			return "", "", nil, fmt.Errorf("leaderID not found in the token claims or has an unexpected type")
+			return "", "", nil, fmt.Errorf("ID not found in the token claims or has an unexpected type")
 		}
 
-		leaderType, ok := claims["types"].(string)
+		Type, ok := claims["type"].(string)
 		if !ok {
-			return "", "", nil, fmt.Errorf("types not found in the token claims or has an unexpected type")
+			return "", "", nil, fmt.Errorf("type not found in the token claims or has an unexpected type")
 		}
 
-		// Extract optional claims, if they exist
+		// Extract optional claims, if they exist.
 		optionalClaims := make(map[string]interface{})
 		for key, value := range claims {
-			if key != "leaderID" && key != "types" {
+			if key != "id" && key != "type" {
 				optionalClaims[key] = value
 			}
 		}
 
-		return leaderID, leaderType, optionalClaims, nil
+		return ID, Type, optionalClaims, nil
 	} else {
 		return "", "", nil, fmt.Errorf("invalid token")
 	}
 }
 
-func ExtractCTXinfo(ctx context.Context) error {
+// ExtractCtxInfoForAllAccess extracts and validates information from the request context.
+func ExtractCtxInfoForAllAccess(ctx context.Context) error {
 	_, ok := ctx.Value(IDContextKey).(string)
 	if !ok {
-		return fmt.Errorf(" Token Expired or you don't have Assess request context, try and Login Again")
+		return fmt.Errorf("token expired or you don't have access to the request context, try logging in again")
 	}
-	leaderType, ok := ctx.Value(LeaderTypeContextKey).(string)
+
+	userType, ok := ctx.Value(UserTypeContextKey).(string)
 	if !ok {
-		return fmt.Errorf("leaderType not found in request context")
+		return fmt.Errorf("userType not found in request context")
 	}
 
-	leaderType = strings.ToUpper(leaderType) // Convert leaderType to uppercase
+	userType = strings.ToLower(userType) // Convert userType to lowercase
 
-	// Check if the leaderType is not one of the allowed values
-	if leaderType != "ADMIN" && leaderType != "SUBCHURCH" && leaderType != "SUBLEADER" && leaderType != "LEADER" && leaderType != "CALLAGENT" {
-		return fmt.Errorf("%s is not allowed", leaderType)
+	// Check if the userType is not one of the allowed values.
+	if userType != "vendor" && userType != "user" {
+		return fmt.Errorf("%s is not allowed", userType)
 	}
 
 	return nil
 }
 
+// ValidateTokens validates the provided JWT token and returns the claims if the token is valid.
 func ValidateTokens(signedToken string) (*TokenStruct, error) {
 	// Parse the JWT token with claims and validation function.
 	token, err := jwt.ParseWithClaims(
@@ -190,10 +194,71 @@ func ValidateTokens(signedToken string) (*TokenStruct, error) {
 	}
 
 	// Verify if the token has expired.
-	if claims.ExpiresAt > time.Now().UTC().Unix() {
+	if claims.ExpiresAt < time.Now().UTC().Unix() {
 		return nil, errors.New("token has expired")
 	}
 
 	// Token is valid, return the claims.
 	return claims, nil
+}
+
+// GenerateToken creates a new JWT token with the specified type, ID, and optional claims.
+func GenerateToken(userType string, ID string, optionalClaims ...jwt.MapClaims) (string, error) {
+	// Create a new JWT token with the signing method HS256 (HMAC SHA-256)
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	// Convert the token's claims to a map
+	claims := token.Claims.(jwt.MapClaims)
+
+	// Set the "type" and "ID" claims in the token
+	claims["type"] = userType
+	claims["id"] = ID
+
+	// Set the "exp" (expiration) claim to the current time + 24 hours
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	// Set optional claims if provided
+	for _, optionalClaim := range optionalClaims {
+		for key, value := range optionalClaim {
+			claims[key] = value
+		}
+	}
+
+	// Sign the token using a secret key
+	tokenString, err := token.SignedString(JwtSecret)
+	if err != nil {
+		log.Fatal("Error in generating token")
+		return "", err
+	}
+
+	// Return the signed token as a string
+	return tokenString, nil
+}
+
+// SetTokenForContext generates a new token and sets it in the context’s cookie.
+func SetTokenForContext(ctx context.Context, userType, id string) error {
+	// Generate a new token
+	token, err := GenerateToken(userType, id)
+	if err != nil {
+		return fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	// Retrieve the CookieAccess object from the context
+	ca, ok := ctx.Value(CookieAccessKeyCtx).(*CookieAccess)
+	if !ok {
+		return fmt.Errorf("failed to retrieve CookieAccess from context")
+	}
+
+	// Set the generated token as a cookie using the CookieAccess object
+	ca.SetToken(token)
+	return nil
+}
+
+// GetIDFromContext retrieves the ID from the context.
+func GetIDFromContext(ctx context.Context) (string, error) {
+	id, ok := ctx.Value(IDContextKey).(string)
+	if !ok {
+		return "", errors.New("ID not found in context")
+	}
+	return id, nil
 }

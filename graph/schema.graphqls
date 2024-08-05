@@ -4,6 +4,7 @@ scalar Upload
 type User {
   id: String!
   name: String!
+  type: String
   number: String!
   pin: String
   createdAt: Time
@@ -12,25 +13,37 @@ type User {
 type Vendor {
   id: String!
   name: String!
+  type: String
   number: String!
   pin: String
   product: [Product]
+  fileUrls: [FileUrl]
   isCompleted: Boolean
   createdAt: Time
   updatedAt: Time
 }
+
+type FileUrl {
+  id: String! # Unique identifier for the file URL entry
+  vendorId: String! # ID of the vendor associated with this file
+  url: String! # The URL of the file
+  createdAt: Time # Timestamp when the file URL was created
+  updatedAt: Time # Timestamp when the file URL was last updated
+}
+
 type Product {
-  id: String!
-  name: String!
-  price: String!
-  state: String!
-  title: String!
-  brand: String!
-  imageUrls: [String!]!
-  Vendor: Vendor!
-  vendorId: String!
-  createdAt: Time!
-  updatedAt: Time!
+  id: String
+  name: String
+  price: String
+  state: String
+  title: String
+  brand: String
+  imageUrls: [String]
+  vendorsBucketName: String
+  Vendor: Vendor
+  vendorId: String
+  createdAt: Time
+  updatedAt: Time
 }
 input ProductInput {
   name: String!
@@ -38,8 +51,6 @@ input ProductInput {
   state: ProductState!
   title: String!
   brand: String!
-  imageUrls: [String!]!
-  vendorId: String!
 }
 enum ProductState {
   ACTIVE
@@ -83,10 +94,16 @@ input UserInput {
 }
 
 type Query {
+  getID: String
   getUser: User!
+  who: Returns
+  getVendorById(id: String!): Vendor!
   getAllUser: [User!]!
   getAllVendor: [Vendor!]!
   getAllProduct: [Product!]!
+  getAllProductByVendor: [Product!]!
+  imageUrls: [String!]!
+
   userOrders: [UserOrder!]!
   getAllsysteminfor: systeminfor!
 }
@@ -94,10 +111,37 @@ type Query {
 input NewUser {
   name: String!
   number: String!
+  pin: String!
 }
 
+input UploadFile {
+  id: String!
+  file: Upload!
+}
+
+type File {
+  id: String!
+  name: String!
+  content: String!
+}
+
+type ImageFiles {
+  overlay: String!
+  bg: String!
+  combine: String
+}
+
+type ItemFiles {
+  id: String!
+  vendorsBucketName: String!
+  url: String!
+}
 type Mutation {
-   singleUpload(file: Upload!): Boolean!
+  overLayUpload(files: [UploadFile]!): [File!]!
+  VendorUpload(files: [Upload], input: ProductInput): Product!
+  singleUpload(bgFiles: [Upload], overlayFiles: [Upload]): ImageFiles!
+  combineUpload(input: String): String
+  # singleU(files: [Upload]): Upload!
   createUser(input: NewUser!): User!
   delectUserById(id: String!): Boolean
   delectVendorById(id: String!): Boolean
@@ -106,4 +150,14 @@ type Mutation {
   delectTable: Boolean!
   createVendor(input: NewUser!): Vendor!
   createPorduct(input: ProductInput!): Product!
+
+  login(input: LoginInput!): Returns
+  memberlogin(input: LoginInput!): Returns!
+  logOut: Boolean!
+}
+
+union Returns = Vendor | User
+input LoginInput {
+  pin: String!
+  number: String
 }

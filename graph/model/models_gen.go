@@ -6,7 +6,36 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/99designs/gqlgen/graphql"
 )
+
+type Returns interface {
+	IsReturns()
+}
+
+type File struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
+}
+
+type ImageFiles struct {
+	Overlay string  `json:"overlay"`
+	Bg      string  `json:"bg"`
+	Combine *string `json:"combine,omitempty"`
+}
+
+type ItemFiles struct {
+	ID                string `json:"id"`
+	VendorsBucketName string `json:"vendorsBucketName"`
+	URL               string `json:"url"`
+}
+
+type LoginInput struct {
+	Pin    string  `json:"pin"`
+	Number *string `json:"number,omitempty"`
+}
 
 type Mutation struct {
 }
@@ -14,19 +43,23 @@ type Mutation struct {
 type NewUser struct {
 	Name   string `json:"name"`
 	Number string `json:"number"`
+	Pin    string `json:"pin"`
 }
 
 type ProductInput struct {
-	Name      string       `json:"name"`
-	Price     string       `json:"price"`
-	State     ProductState `json:"state"`
-	Title     string       `json:"title"`
-	Brand     string       `json:"brand"`
-	ImageUrls []string     `json:"imageUrls"`
-	VendorID  string       `json:"vendorId"`
+	Name  string       `json:"name"`
+	Price string       `json:"price"`
+	State ProductState `json:"state"`
+	Title string       `json:"title"`
+	Brand string       `json:"brand"`
 }
 
 type Query struct {
+}
+
+type UploadFile struct {
+	ID   string         `json:"id"`
+	File graphql.Upload `json:"file"`
 }
 
 type UserInput struct {
