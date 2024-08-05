@@ -11,8 +11,12 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/mineracail/zokus/database"
-	"github.com/mineracail/zokus/graph"
+	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
+	graph "github.com/mineracail/zokus/graph/resolver"
+
+
+
 	"github.com/mineracail/zokus/helper"
 	"github.com/mineracail/zokus/middleware"
 	"gorm.io/gorm"
@@ -114,7 +118,7 @@ func main() {
 	router.Use(middleware.Middleware)
 
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	server := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
+	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	router.Handle("/query", server)
 
 	log.Printf("Connect to http://localhost:%s/ for GraphQL playground", port)
