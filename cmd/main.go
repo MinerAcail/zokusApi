@@ -15,8 +15,6 @@ import (
 	"github.com/mineracail/zokus/graph/model"
 	graph "github.com/mineracail/zokus/graph/resolver"
 
-
-
 	"github.com/mineracail/zokus/helper"
 	"github.com/mineracail/zokus/middleware"
 	"gorm.io/gorm"
@@ -37,10 +35,11 @@ func PerformMigrations(db *gorm.DB) error {
 	}
 
 	// Run GORM AutoMigrate for your models
-	if err := db.AutoMigrate(
+	if err := db.AutoMigrate(													
 		&model.User{},
 		&model.Vendor{},
-		&model.FileURL{},
+		&model.FavoriteVendor{},
+		&model.FavoriteProduct{},
 		&model.Product{},
 		&model.UserOrder{},
 		&model.ProductRequest{},
@@ -56,7 +55,6 @@ func main() {
 		port = defaultPort
 	}
 
-	
 	//// Read environment variables
 	dbUser := os.Getenv("UserName")
 	dbPassword := os.Getenv("Password")
@@ -64,18 +62,15 @@ func main() {
 	dbHost := os.Getenv("Host") // Use service name in Docker Compose
 	dbPort := "5432"            // Default PostgreSQL port
 
-
 	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
 	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
 	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
 	// minioBucket := "your-bucket-name" // Replace with your 	 name
 
-
-
 	// Configure database connection using database.Config
 	config := &database.Config{
 		Host:     dbHost,
-		Port:     dbPort,		
+		Port:     dbPort,
 		User:     dbUser,
 		Password: dbPassword,
 		DBName:   dbName,
@@ -100,7 +95,7 @@ func main() {
 	}
 
 	resolver := &graph.Resolver{
-		DB: db,
+		DB:          db,
 		MinIOClient: minioClient,
 	}
 
@@ -109,7 +104,7 @@ func main() {
 	// Configure CORS
 	corsConfig := cors.New(cors.Options{
 		// { "http://localhost:5173", "http://yourdomain.com", "https://anotherdomain.com"},
-		AllowedOrigins:   []string{"http://localhost:5173"		}, // You can configure specific origins here
+		AllowedOrigins:   []string{"http://localhost:5173"}, // You can configure specific origins here
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,

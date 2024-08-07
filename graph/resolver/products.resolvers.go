@@ -6,11 +6,30 @@ package graph
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
 	"github.com/mineracail/zokus/helper"
+	"gorm.io/gorm"
 )
+
+func (r *favoriteProductResolver) ID(ctx context.Context, obj *model.FavoriteProduct) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+func (r *favoriteProductResolver) UserID(ctx context.Context, obj *model.FavoriteProduct) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+func (r *favoriteProductResolver) ProductID(ctx context.Context, obj *model.FavoriteProduct) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
 
 func (r *mutationResolver) DelectProductByID(ctx context.Context, id string) (*bool, error) {
 	var product model.Product
@@ -44,6 +63,73 @@ func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.Produc
 	// 	return nil, fmt.Errorf("failed to save user to the database")
 	// }
 	return nil, nil
+}
+
+func (r *mutationResolver) AddFavoriteProduct(ctx context.Context, productID string) (*model.FavoriteProduct, error) {
+	VendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	userUUID, err := uuid.Parse(*VendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+	productUUID, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %w", err)
+	}
+
+	// Check if the favorite product already exists to prevent duplicates
+	var existingFavorite model.FavoriteProduct
+	if err := r.DB.Where("user_id = ? AND product_id = ?", userUUID, productUUID).First(&existingFavorite).Error; err == nil {
+		return nil, fmt.Errorf("favorite already exists")
+	}
+
+	// Fetch the product details to include in the response
+	var product model.Product
+	if err := r.DB.Where("id = ?", productUUID).First(&product).Error; err != nil {
+		return nil, err
+	}
+
+	// Create a new FavoriteProduct instance
+	favorite := &model.FavoriteProduct{
+		UserID:    userUUID,
+		ProductID: productUUID,
+		Product:   &product, // This assumes your FavoriteProduct model has a Product field for the product details
+	}
+
+	// Save the favorite product
+	if err := r.DB.Create(favorite).Error; err != nil {
+		return nil, err
+	}
+
+	return favorite, nil
+}
+
+func (r *mutationResolver) RemoveFavoriteProduct(ctx context.Context, id string) (*bool, error) {
+	// Parse UUID for product ID
+	productUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %w", err)
+	}
+
+	// Get user ID from context or query
+	vendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	userUUID, err := uuid.Parse(*vendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Delete the favorite product based on product ID and user ID
+	if err := r.DB.Where("product_id = ? AND user_id = ?", productUUID, userUUID).Delete(&model.FavoriteProduct{}).Error; err != nil {
+		return nil, fmt.Errorf("failed to delete favorite product: %w", err)
+	}
+
+	success := true
+	return &success, nil
 }
 
 func (r *productResolver) ID(ctx context.Context, obj *model.Product) (*string, error) {
@@ -94,11 +180,122 @@ func (r *productRequestResolver) ImageUrls(ctx context.Context, obj *model.Produ
 func (r *queryResolver) GetAllProduct(ctx context.Context) ([]*model.Product, error) {
 	var products []*model.Product
 
-	if err := helper.GetAllByModel(r.DB, &products); err != nil {
+	if err := helper.GetAllByModel(r.DB, &products, "Vendor"); err != nil {
 		return nil, err
 	}
 
 	return products, nil
+}
+
+func (r *queryResolver) GetUserFavoriteProducts(ctx context.Context) ([]*model.Product, error) {
+	VendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	// Parse UUID
+	userUUID, err := uuid.Parse(*VendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch favorite products for the user
+	var favoriteProducts []*model.FavoriteProduct
+	if err := r.DB.Where("user_id = ?", userUUID).Find(&favoriteProducts).Error; err != nil {
+		return nil, err
+	}
+
+	// Extract product IDs from favorite products
+	productIDs := make([]uuid.UUID, len(favoriteProducts)) //pushing the id to product array
+	for i, fp := range favoriteProducts {
+		productIDs[i] = fp.ProductID
+	}
+
+	// Fetch products details
+	var products []*model.Product
+	if err := r.DB.Where("id IN ?", productIDs).Find(&products).Error; err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func (r *queryResolver) GetFavoriteProduct(ctx context.Context, id string) (*model.FavoriteProduct, error) {
+	// Parse UUID
+	favoriteID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid favorite product ID: %w", err)
+	}
+
+	// Fetch the favorite product
+	var favoriteProduct model.FavoriteProduct
+	if err := r.DB.Where("id = ?", favoriteID).First(&favoriteProduct).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("favorite product not found")
+		}
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (r *queryResolver) GetAllFavoriteProduct(ctx context.Context, vendorid string) (*model.FavoriteMateData, error) {
+	// Parse UUID for VendorID
+	vendorUUID, err := uuid.Parse(vendorid)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %w", err)
+	}
+
+	// Fetch favorite products with joins and preload
+	var favoriteProducts []*model.FavoriteProduct
+	if err := r.DB.
+		Joins("JOIN products ON products.id = favorite_products.product_id").
+		Joins("JOIN users ON users.id = favorite_products.user_id").
+		Where("products.vendor_id = ?", vendorUUID).
+		Preload("User").
+		Preload("Product").
+		Find(&favoriteProducts).Error; err != nil {
+		return nil, err
+	}
+
+	// Count of favorite products
+	count := len(favoriteProducts)
+
+	// Calculate total price of favorited products
+	var totalPrice float64
+	for _, fp := range favoriteProducts {
+		if fp.Product != nil && fp.Product.Price != nil {
+			price, err := strconv.ParseFloat(*fp.Product.Price, 64)
+			if err == nil {
+				totalPrice += price
+			}
+		}
+	}
+
+	// Find the most favorited product (example logic)
+	var mostFavoritedProduct *model.Product
+	if err := r.DB.
+		Joins("JOIN favorite_products ON favorite_products.product_id = products.id").
+		Where("products.vendor_id = ?", vendorUUID).
+		Group("products.id").
+		Order("COUNT(favorite_products.id) DESC").
+		Limit(1).
+		First(&mostFavoritedProduct).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return nil, err
+		}
+	}
+
+	// Return the FavoriteMateData
+	return &model.FavoriteMateData{
+		FavoriteProducts:     favoriteProducts,
+		Count:                count,
+		TotalPrice:           &totalPrice,
+		MostFavoritedProduct: mostFavoritedProduct,
+	}, nil
+}
+
+func (r *Resolver) FavoriteProduct() generated.FavoriteProductResolver {
+	return &favoriteProductResolver{r}
 }
 
 func (r *Resolver) Product() generated.ProductResolver { return &productResolver{r} }
@@ -107,5 +304,6 @@ func (r *Resolver) ProductRequest() generated.ProductRequestResolver {
 	return &productRequestResolver{r}
 }
 
+type favoriteProductResolver struct{ *Resolver }
 type productResolver struct{ *Resolver }
 type productRequestResolver struct{ *Resolver }

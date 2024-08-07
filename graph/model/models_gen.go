@@ -14,6 +14,13 @@ type Returns interface {
 	IsReturns()
 }
 
+type FavoriteMateData struct {
+	FavoriteProducts     []*FavoriteProduct `json:"favoriteProducts"`
+	Count                int                `json:"count"`
+	TotalPrice           *float64           `json:"totalPrice,omitempty"`
+	MostFavoritedProduct *Product           `json:"mostFavoritedProduct,omitempty"`
+}
+
 type File struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`

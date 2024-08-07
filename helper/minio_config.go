@@ -23,13 +23,11 @@ func InitMinIO(endpoint, accessKey, secretKey string) (*minio.Client, error) {
 	return minioClient, nil
 }
 
-func CreateBucketInMinio(ctx context.Context, minioClient *minio.Client, id string) error {
+func CreateBucketInMinio(ctx context.Context, minioClient *minio.Client, bucketName string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	
-	// Generate a unique bucket name
-	bucketName := fmt.Sprintf("vendor-%s-bucket", id)
 
+	// Check if bucket exists
 	exists, err := minioClient.BucketExists(ctx, bucketName)
 	if err != nil {
 		return fmt.Errorf("failed to check if bucket exists: %v", err)
@@ -57,10 +55,9 @@ func CreateBucketInMinio(ctx context.Context, minioClient *minio.Client, id stri
 		return fmt.Errorf("could not set bucket policy: %v", err)
 	}
 
-	
-
 	return nil
 }
+
 
 func GenerateFileURL(bucketName, fileName string, minioClient *minio.Client) (string, error) {
 	expiration := time.Hour * 24 // URL expiration time (24 hours)

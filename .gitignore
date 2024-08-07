@@ -30,7 +30,7 @@ tmp/
 # Go specific
 go.sum
 
-# gqlgen generated files
+# gqlgen generated files    
 graph/generated/
 graph/model/generated/
 # Environment variables

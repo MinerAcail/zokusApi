@@ -1,13 +1,16 @@
 package helper
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/model"
+	"github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
 )
 
@@ -72,7 +75,6 @@ func CheckDuplicateRecords(db *gorm.DB, model interface{}, inputName, inputPhone
 	return nil
 }
 
-
 func CleanPhoneNumber(phoneNumber string) string {
 	cleanedPhoneNumber := strings.ReplaceAll(phoneNumber, " ", "")
 	cleanedPhoneNumber = strings.TrimPrefix(cleanedPhoneNumber, "+233")
@@ -101,4 +103,29 @@ func FetchProducts(db *gorm.DB, productIDs []uuid.UUID) ([]*model.Product, error
 		return nil, fmt.Errorf("some products not found: %v", err)
 	}
 	return products, nil
+}
+
+func UploadFileToMinio(ctx context.Context, minioClient *minio.Client, bucketName, fileType string, file *graphql.Upload) (string, error) {
+	uniqueID := uuid.New().String()
+	fileName := fmt.Sprintf("%s-%s-%s", bucketName, fileType, uniqueID)
+
+	// Ensure bucket exists before uploading
+	exists, err := minioClient.BucketExists(ctx, bucketName)
+	if err != nil {
+		return "", fmt.Errorf("failed to check if bucket exists: %v", err)
+	}
+	if !exists {
+		return "", fmt.Errorf("bucket %s does not exist", bucketName)
+	}
+
+	// Upload the file to MinIO
+	_, err = minioClient.PutObject(ctx, bucketName, fileName, file.File, file.Size, minio.PutObjectOptions{ContentType: file.ContentType})
+	if err != nil {
+		return "", fmt.Errorf("failed to upload file to MinIO: %v", err)
+	}
+
+	// Generate and return the file URL
+	fileURL := fmt.Sprintf("/minio/%s/%s", bucketName, fileName)
+
+	return fileURL, nil
 }

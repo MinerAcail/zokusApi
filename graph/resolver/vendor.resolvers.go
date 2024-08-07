@@ -17,15 +17,30 @@ import (
 	"gorm.io/gorm"
 )
 
+func (r *favoriteVendorResolver) ID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+func (r *favoriteVendorResolver) UserID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
+func (r *favoriteVendorResolver) VendorID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
+	id := obj.ID.String()
+	return id, nil
+}
+
 func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Upload, input *model.ProductInput) (*model.Product, error) {
 	// Retrieve the VendorID from the context
-	VendorIDStr := " GetID(ctx)"
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get vendor ID: %v", err)
-	// }
+	VendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
 
 	// Convert VendorID from string to uuid.UUID
-	VendorID, err := uuid.Parse(VendorIDStr)
+	VendorID, err := uuid.Parse(*VendorIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid vendor ID format: %v", err)
 	}
@@ -50,10 +65,8 @@ func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Up
 		}
 
 		// Generate a URL for the file
-		fileURL, err := helper.GenerateFileURL(bucketName, fileName, r.MinIOClient)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate file URL for %s: %v", fileName, err)
-		}
+
+		fileURL := fmt.Sprintf("/minio/%s/%s", bucketName, fileName)
 
 		// Append the file URL to the product URLs list
 		productURLs = append(productURLs, fileURL)
@@ -91,7 +104,7 @@ func (r *mutationResolver) DelectVendorByID(ctx context.Context, id string) (*bo
 	return &helper.IsTrue, nil
 }
 
-func (r *mutationResolver) CreateVendor(ctx context.Context, input model.NewUser) (*model.Vendor, error) {
+func (r *mutationResolver) CreateVendor(ctx context.Context, mateData *model.UploadVendorMateData, input model.NewVendor) (*model.Vendor, error) {
 	// Check for required fields
 	if input.Number == "" || input.Name == "" {
 		return nil, fmt.Errorf("number and name are required")
@@ -108,27 +121,127 @@ func (r *mutationResolver) CreateVendor(ctx context.Context, input model.NewUser
 	if err := helper.CheckDuplicateRecords(r.DB, &model.Vendor{}, input.Name, input.Number); err != nil {
 		return nil, err
 	}
-	// Save the vendor to the database using your preferred ORM-
+	// Save the vendor to the database using your preferred ORM
 	if err := r.DB.Create(vendor).Error; err != nil {
 		return nil, fmt.Errorf("failed to save vendor to the database")
 	}
 	// Convert UUID to string
 	vendorIDStr := vendor.ID.String()
 
-	// Create the bucket and Generate a unique bucket namein MinIO using the helper function
-	if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, vendorIDStr); err != nil {
+	// Create the bucket and Generate a unique bucket name in MinIO using the helper function
+	bucketName := fmt.Sprintf("vendor-%s-bucket", vendorIDStr)
+	if len(bucketName) > 63 {
+		bucketName = bucketName[:63] // Truncate if necessary
+	}
+	if err := helper.CreateBucketInMinio(ctx, r.MinIOClient, bucketName); err != nil {
 		return nil, err
+	}
+
+	// Handle file uploads if mateData is provided
+	if mateData != nil {
+		if mateData.Profile != nil {
+			profileURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "profile", mateData.Profile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to upload profile image: %v", err)
+			}
+			vendor.ProfileURL = &profileURL
+		}
+		if mateData.Background != nil {
+			backgroundURL, err := helper.UploadFileToMinio(ctx, r.MinIOClient, bucketName, "background", mateData.Background)
+			if err != nil {
+				return nil, fmt.Errorf("failed to upload background image: %v", err)
+			}
+			vendor.BackgroundURL = &backgroundURL
+		}
+
+		// Update the vendor with the file URLs
+		if err := r.DB.Save(vendor).Error; err != nil {
+			return nil, fmt.Errorf("failed to update vendor with file URLs: %v", err)
+		}
 	}
 
 	return vendor, nil
 }
 
+func (r *mutationResolver) AddFavoriteVendor(ctx context.Context, vendorID string) (*model.FavoriteVendor, error) {
+	VendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+	userUUID, err := uuid.Parse(*VendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+	vendorUUID, err := uuid.Parse(vendorID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %w", err)
+	}
+
+	// Check if the favorite vendor already exists
+	var existingFavorite model.FavoriteVendor
+	if err := r.DB.Where("user_id = ? AND vendor_id = ?", userUUID, vendorUUID).First(&existingFavorite).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("favorite already exists")
+	}
+
+	favorite := &model.FavoriteVendor{
+		UserID:   userUUID,
+		VendorID: vendorUUID,
+	}
+
+	if err := r.DB.Create(favorite).Error; err != nil {
+		return nil, err
+	}
+
+	return favorite, nil
+}
+
+func (r *mutationResolver) RemoveFavoriteVendor(ctx context.Context, id string) (*bool, error) {
+	// Parse UUID for vendor ID
+	vendorUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %w", err)
+	}
+
+	// Get user ID from context or query
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Delete the favorite vendor based on vendor ID and user ID
+	if err := r.DB.Where("vendor_id = ? AND user_id = ?", vendorUUID, userUUID).Delete(&model.FavoriteVendor{}).Error; err != nil {
+		return nil, fmt.Errorf("failed to delete favorite vendor: %w", err)
+	}
+
+	success := true
+	return &success, nil
+}
+
 func (r *queryResolver) GetVendorByID(ctx context.Context, id string) (*model.Vendor, error) {
+	// Retrieve the VendorID from the context
+	// VendorIDStr, err := r.Query().GetID(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	// }
+
+	// // Convert VendorID from string to uuid.UUID
+	// VendorID, err := uuid.Parse(*VendorIDStr)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("invalid vendor ID format: %v", err)
+	// }
 	// Initialize an empty vendor object
 	vendor := &model.Vendor{}
-
+	//todo remove FileUrls if not used
 	// Query the database for the vendor with the given ID
-	if err := r.DB.Preload("FileUrls").Where("id = ?", id).First(vendor).Error; err != nil {
+	if err := r.DB.Preload("Product").Where("id = ?", id).First(vendor).Error; err != nil {
 		// Handle the case where no vendor is found
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("vendor with ID %s not found", id)
@@ -172,11 +285,109 @@ func (r *queryResolver) GetAllProductByVendor(ctx context.Context) ([]*model.Pro
 	return products, nil
 }
 
+func (r *queryResolver) GetUserFavoriteVendors(ctx context.Context) ([]*model.Vendor, error) {
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+	// Parse UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch favorite vendors for the user
+	var favoriteVendors []*model.FavoriteVendor
+	if err := r.DB.Where("user_id = ?", userUUID).Find(&favoriteVendors).Error; err != nil {
+		return nil, err
+	}
+
+	// Extract vendor IDs from favorite vendors
+	vendorIDs := make([]uuid.UUID, len(favoriteVendors))
+	for i, fv := range favoriteVendors {
+		vendorIDs[i] = fv.VendorID
+	}
+
+	// Fetch vendors details
+	var vendors []*model.Vendor
+	if err := r.DB.Where("id IN ?", vendorIDs).Find(&vendors).Error; err != nil {
+		return nil, err
+	}
+
+	return vendors, nil
+}
+
+func (r *queryResolver) GetTotalCountOfFavoriteVendor(ctx context.Context, vendorID string) (int, error) {
+	vendorUUID, err := uuid.Parse(vendorID)
+	if err != nil {
+		return 0, fmt.Errorf("invalid vendor ID: %w", err)
+	}
+
+	// Count the number of favorites for the vendor
+	var count int64
+	if err := r.DB.Model(&model.FavoriteVendor{}).Where("vendor_id = ?", vendorUUID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
+}// Parse UUID
+
+func (r *queryResolver) GetAllFavoriteVendors(ctx context.Context) (*model.FavoriteVendorMateData, error) {
+	// Fetch the user ID
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Fetch favorite vendors for the user
+	var favoriteVendors []*model.FavoriteVendor
+	if err := r.DB.
+		Joins("JOIN vendors ON vendors.id = favorite_vendors.vendor_id").
+		Where("favorite_vendors.user_id = ?", userIDStr).
+		Preload("User").
+		Preload("Vendor").
+		Find(&favoriteVendors).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch favorite vendors: %v", err)
+	}
+
+	// Count of favorite vendors
+	count := len(favoriteVendors)
+
+	// Find the most favorited vendor
+	var mostFavoritedVendor model.Vendor
+	if err := r.DB.
+		Table("vendors").
+		Select("vendors.*, COUNT(favorite_vendors.vendor_id) as favorited_count").
+		Joins("JOIN favorite_vendors ON favorite_vendors.vendor_id = vendors.id").
+		Group("vendors.id").
+		Order("favorited_count DESC").
+		Limit(1).
+		First(&mostFavoritedVendor).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("failed to fetch most favorited vendor: %v", err)
+		}
+		// Handle case where no vendors are found
+		mostFavoritedVendor = model.Vendor{}
+	}
+
+	// Return the FavoriteVendorMateData
+	return &model.FavoriteVendorMateData{
+		FavoriteVendors:     favoriteVendors,
+		Count:               count,
+		MostFavoritedVendor: &mostFavoritedVendor,
+	}, nil
+}
+
 func (r *vendorResolver) ID(ctx context.Context, obj *model.Vendor) (string, error) {
 	id := obj.ID.String()
 	return id, nil
 }
 
+func (r *Resolver) FavoriteVendor() generated.FavoriteVendorResolver {
+	return &favoriteVendorResolver{r}
+}
+
 func (r *Resolver) Vendor() generated.VendorResolver { return &vendorResolver{r} }
 
+type favoriteVendorResolver struct{ *Resolver }
 type vendorResolver struct{ *Resolver }

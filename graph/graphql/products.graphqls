@@ -12,6 +12,7 @@ type Product {
   createdAt: Time
   updatedAt: Time
 }
+
 input ProductInput {
   name: String!
   price: String!
@@ -35,11 +36,32 @@ type ProductRequest {
   createdAt: Time!
   updatedAt: Time!
 }
+
+type FavoriteProduct {
+  id: String!
+  user: User!
+  userId: String!
+  product: Product!
+  productId: String!
+  createdAt: Time!
+}
+type FavoriteMateData {
+  favoriteProducts: [FavoriteProduct!]!
+  count: Int!
+  totalPrice: Float
+  mostFavoritedProduct: Product
+}
+
 extend type Query {
-    getAllProduct: [Product!]!
+  getAllProduct: [Product!]!
+  getUserFavoriteProducts: [Product!]!
+  getFavoriteProduct(id: String!): FavoriteProduct
+  getAllFavoriteProduct(Vendorid: String!): FavoriteMateData!
 }
 
 extend type Mutation {
   delectProductById(id: String!): Boolean
-    createPorduct(input: ProductInput!): Product!
+  createPorduct(input: ProductInput!): Product!
+  addFavoriteProduct(productId: String!): FavoriteProduct!
+  removeFavoriteProduct(id: String!): Boolean
 }

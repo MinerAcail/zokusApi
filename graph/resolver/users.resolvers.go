@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/mineracail/zokus/database/redis"
 	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
 	"github.com/mineracail/zokus/helper"
@@ -143,8 +142,6 @@ func (r *queryResolver) GetUser(ctx context.Context) (*model.User, error) {
 }
 
 func (r *queryResolver) GetAllUser(ctx context.Context) ([]*model.User, error) {
-	rdb := redis.ConfigureRedis()
-	fmt.Printf("Redis client: %v\n", rdb)
 	var user []*model.User
 	if err := helper.GetAllByModel(r.DB, &user); err != nil {
 		return nil, err

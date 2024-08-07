@@ -6,21 +6,54 @@ type Vendor {
   pin: String
   product: [Product]
   fileUrls: [FileUrl]
+  profileUrl: String
+  backgroundUrl: String
   isCompleted: Boolean
   createdAt: Time
   updatedAt: Time
 }
+type FavoriteVendor {
+  id: String!
+  user: User!
+  userId: String!
+  vendor: Vendor!
+  vendorId: String!
+  createdAt: Time!
+}
 
+type FavoriteVendorMateData {
+  favoriteVendors: [FavoriteVendor!]!
+  count: Int!
+  mostFavoritedVendor: Vendor
+}
 
 extend type Query {
   getVendorById(id: String!): Vendor!
-    getAllVendor: [Vendor!]!
+  getAllVendor: [Vendor!]!
   getAllProductByVendor: [Product!]!
+
+  getUserFavoriteVendors: [Vendor!]!
+  getTotalCountOfFavoriteVendor(vendorId: String!): Int!
+
+  getAllFavoriteVendors: FavoriteVendorMateData!
 }
 
 extend type Mutation {
-    VendorUpload(files: [Upload], input: ProductInput): Product!
-      delectVendorById(id: String!): Boolean
-  createVendor(input: NewUser!): Vendor!
+  VendorUpload(files: [Upload], input: ProductInput): Product!
+  delectVendorById(id: String!): Boolean
+  createVendor(mateData: UploadVendorMateData, input: NewVendor!): Vendor!
 
+  addFavoriteVendor(vendorId: String!): FavoriteVendor!
+  removeFavoriteVendor(id: String!): Boolean
+}
+
+input NewVendor {
+  name: String!
+  number: String!
+  pin: String!
+}
+
+input UploadVendorMateData {
+  profile: Upload
+  background: Upload
 }

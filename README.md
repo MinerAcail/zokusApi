@@ -16,6 +16,14 @@ END $$;
 
 only for gqlgen
 go run github.com/99designs/gqlgen generate
-go run github.com/99designs/gqlgen generate
 
+
+only for GORM or psql
+
+
+
+
+ Function Explain
+GetAllFavoriteProduct => mostFavoritedProduct
+To find the most favorited product, you can use SQL queries to count the number of times each product appears in the FavoriteProduct table and then select the product with the highest count.
 
