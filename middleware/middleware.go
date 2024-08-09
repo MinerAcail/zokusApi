@@ -156,7 +156,7 @@ func ExtractCtxInfoForAllAccess(ctx context.Context) error {
 	userType = strings.ToLower(userType) // Convert userType to lowercase
 
 	// Check if the userType is not one of the allowed values.
-	if userType != "vendor" && userType != "user" {
+	if userType != "vendor" && userType != "user" && userType != "swapper" {
 		return fmt.Errorf("%s is not allowed", userType)
 	}
 

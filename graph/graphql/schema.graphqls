@@ -19,7 +19,7 @@ type Mutation {
   logOut: Boolean!
 }
 
-union Returns = Vendor | User
+union Returns = Vendor | User | SideSwapper
 input LoginInput {
   pin: String!
   number: String

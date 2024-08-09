@@ -16,3 +16,5 @@ type FileURL struct {
 
 func (User) IsReturns()   {}
 func (Vendor) IsReturns() {}
+func (SideSwapper) IsReturns() {}
+		

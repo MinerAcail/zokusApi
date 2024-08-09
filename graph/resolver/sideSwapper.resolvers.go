@@ -27,7 +27,7 @@ func (r *mutationResolver) CreateSideSwapper(ctx context.Context, input model.Ne
 		Type:   &types,
 	}
 	// Check for duplicate records
-	if err := helper.CheckDuplicateRecords(r.DB, &model.SideSwapper	{}, input.Name, input.Number); err != nil {
+	if err := helper.CheckDuplicateRecords(r.DB, &model.SideSwapper{}, input.Name, input.Number); err != nil {
 		return nil, err
 	}
 	// Save the sideSwapper to your database

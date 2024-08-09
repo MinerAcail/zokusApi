@@ -36,6 +36,14 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (m
 		return vendor, nil
 	}
 
+	SideSwapper := &model.SideSwapper{}
+
+	if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(SideSwapper).Error; err == nil {
+		middleware.SetTokenForContext(ctx, *SideSwapper.Type, SideSwapper.ID.String())
+
+		return SideSwapper, nil
+	}
+
 	// ffwf
 
 	// Return an error if neither a user nor a vendor was found
