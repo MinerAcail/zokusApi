@@ -1,0 +1,64 @@
+type SideSwapper {
+  id: String!
+  name: String!
+  type: String
+  number: String!
+  pin: String
+  productsIds: [String]!
+  products: [SideSwapperProduct]!
+  inventoryMetaDataIds: [String]!
+  inventoryMetaData: [ProductInventoryMetaData]!
+  pricing: Pricing!
+  PricingId: String!
+  createdAt: Time
+  updatedAt: Time
+}
+
+type SideSwapperProduct {
+  id: String!
+  sideSwapper: SideSwapper!
+  sideSwapperID: String!
+  vendor: Vendor!
+  vendorId: String!
+  product: Product!
+  productId: String!
+  Pricing: Pricing!
+  PricingId: String!
+}
+
+type ProductInventoryMetaData {
+  id: String!
+  sideSwapper: SideSwapper!
+  sideSwapperID: String!
+  stockLevel: Int!
+  PercentageLevel: Float!
+  updatedAt: Time
+}
+
+type Pricing {
+  id: String!
+  basePrice: Float!
+  markupPercentage: Float!
+}
+
+type SalesReport {
+  period: String! # E.g., "2024-Q1"
+  totalSales: Float!
+  totalOrders: Int!
+}
+
+input NewSideSwapper {
+  name: String!
+  number: String!
+  pin: String!
+}
+
+extend type Query {
+  getSideSwapper(id: String!): SideSwapper!
+  getAllSideSwappers: [SideSwapper!]!
+}
+
+extend type Mutation {
+  createSideSwapper(input: NewSideSwapper!): SideSwapper!
+  deleteSideSwapperById(id: String!): Boolean
+}

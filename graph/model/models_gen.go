@@ -47,6 +47,12 @@ type LoginInput struct {
 type Mutation struct {
 }
 
+type NewSideSwapper struct {
+	Name   string `json:"name"`
+	Number string `json:"number"`
+	Pin    string `json:"pin"`
+}
+
 type NewUser struct {
 	Name   string `json:"name"`
 	Number string `json:"number"`
@@ -62,6 +68,12 @@ type ProductInput struct {
 }
 
 type Query struct {
+}
+
+type SalesReport struct {
+	Period      string  `json:"period"`
+	TotalSales  float64 `json:"totalSales"`
+	TotalOrders int     `json:"totalOrders"`
 }
 
 type UploadFile struct {

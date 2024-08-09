@@ -330,7 +330,7 @@ func (r *queryResolver) GetTotalCountOfFavoriteVendor(ctx context.Context, vendo
 	}
 
 	return int(count), nil
-}// Parse UUID
+}
 
 func (r *queryResolver) GetAllFavoriteVendors(ctx context.Context) (*model.FavoriteVendorMateData, error) {
 	// Fetch the user ID

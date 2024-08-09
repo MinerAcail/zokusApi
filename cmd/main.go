@@ -40,6 +40,12 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.Vendor{},
 		&model.FavoriteVendor{},
 		&model.FavoriteProduct{},
+		&model.SideSwapper{},
+		&model.SideSwapperProduct{},
+		&model.ProductInventoryMetaData{},
+		&model.Pricing{},
+
+
 		&model.Product{},
 		&model.UserOrder{},
 		&model.ProductRequest{},
