@@ -60,5 +60,10 @@ extend type Query {
 
 extend type Mutation {
   createSideSwapper(input: NewSideSwapper!): SideSwapper!
+  addSideSwapperProduct(
+    percentage: String!
+    productId: String!
+  ): SideSwapperProduct!
   deleteSideSwapperById(id: String!): Boolean
+  deleteAllSideSwapper: Boolean
 }

@@ -7,7 +7,10 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log"
+	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
 	"github.com/mineracail/zokus/helper"
@@ -39,6 +42,78 @@ func (r *mutationResolver) CreateSideSwapper(ctx context.Context, input model.Ne
 	return sideSwapper, nil
 }
 
+func (r *mutationResolver) AddSideSwapperProduct(ctx context.Context, percentage string, productID string) (*model.SideSwapperProduct, error) {
+	// Retrieve and parse swapper ID from context
+	swapperIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get swapper ID: %v", err)
+	}
+	swapperUUID, err := uuid.Parse(*swapperIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid swapper ID: %w", err)
+	}
+
+	// Parse product ID
+	productUUID, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %w", err)
+	}
+
+	// Fetch product and swapper details from the database
+	var product model.Product
+	if err := r.DB.Where("id = ?", productUUID).Preload("Vendor").First(&product).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch product: %v", err)
+	}
+	var swapper model.SideSwapper
+	if err := r.DB.Where("id = ?", swapperUUID).First(&swapper).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch swapper: %v", err)
+	}
+
+	// Convert percentage to float64
+	markupPercentage, err := strconv.ParseFloat(percentage, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid percentage value: %w", err)
+	}
+
+	// Convert product.Price from *string to float64
+	var basePrice float64
+	if product.Price != nil {
+		basePrice, err = strconv.ParseFloat(*product.Price, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse product price: %v", err)
+		}
+	} else {
+		return nil, fmt.Errorf("product price is not available")
+	}
+
+	// Create and save the Pricing instance
+	pricing := &model.Pricing{
+		BasePrice:        basePrice,
+		MarkupPercentage: markupPercentage,
+	}
+	if err := r.DB.Create(pricing).Error; err != nil {
+		return nil, fmt.Errorf("failed to save pricing: %v", err)
+	}
+	log.Printf("Vendor details: %+v", product.Vendor)
+
+	// Create and save the SideSwapperProduct instance
+	sideSwapperProduct := &model.SideSwapperProduct{
+		SideSwapperID: swapperUUID,
+		SideSwapper:   &swapper,
+		ProductID:     productUUID,
+		Product:       &product,
+		PricingID:     &pricing.ID, // Reference to Pricing
+		Pricing:       pricing,
+		Vendor:        product.Vendor,   // Ensure this is correctly referenced
+		VendorID:      product.VendorID, // Ensure this is correctly referenced
+	}
+	if err := r.DB.Create(sideSwapperProduct).Error; err != nil {
+		return nil, fmt.Errorf("failed to save side swapper product: %v", err)
+	}
+
+	return sideSwapperProduct, nil
+}
+
 func (r *mutationResolver) DeleteSideSwapperByID(ctx context.Context, id string) (*bool, error) {
 	// Delete the SideSwapper from the database by ID
 	err := r.DB.Where("id = ?", id).Delete(&model.SideSwapper{}).Error
@@ -48,6 +123,38 @@ func (r *mutationResolver) DeleteSideSwapperByID(ctx context.Context, id string)
 
 	success := true
 	return &success, nil
+}
+
+func (r *mutationResolver) DeleteAllSideSwapper(ctx context.Context) (*bool, error) {
+		// Begin a transaction
+		tx := r.DB.Begin()
+
+		// Delete all SideSwapperProduct records first to avoid foreign key constraint violations
+		if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapperProduct{}).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("could not delete SideSwapperProducts: %v", err)
+		}
+	
+		// Delete all Pricing records related to deleted SideSwapperProducts
+		if err := tx.Unscoped().Where("1 = 1").Delete(&model.Pricing{}).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("could not delete Pricing: %v", err)
+		}
+	
+		// Delete all SideSwapper records
+		if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapper{}).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("could not delete SideSwappers: %v", err)
+		}
+	
+		// Commit the transaction
+		if err := tx.Commit().Error; err != nil {
+			return nil, fmt.Errorf("could not commit transaction: %v", err)
+		}
+	
+		success := true
+		return &success, nil
+
 }
 
 func (r *pricingResolver) ID(ctx context.Context, obj *model.Pricing) (string, error) {
@@ -79,7 +186,7 @@ func (r *queryResolver) GetSideSwapper(ctx context.Context, id string) (*model.S
 func (r *queryResolver) GetAllSideSwappers(ctx context.Context) ([]*model.SideSwapper, error) {
 	// Fetch all SideSwappers from the database
 	var sideSwappers []*model.SideSwapper
-	err := r.DB.Find(&sideSwappers).Error
+	err := r.DB.Preload("Products.Pricing").Preload("Products.SideSwapper").Find(&sideSwappers).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve SideSwappers: %v", err)
 	}
