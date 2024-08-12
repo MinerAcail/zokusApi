@@ -66,6 +66,7 @@ func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.Produc
 }
 
 func (r *mutationResolver) AddFavoriteProduct(ctx context.Context, productID string) (*model.FavoriteProduct, error) {
+	// Retrieve the vendor (user) ID from the context
 	VendorIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
@@ -74,6 +75,13 @@ func (r *mutationResolver) AddFavoriteProduct(ctx context.Context, productID str
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
+
+	// Determine the user type (User, Vendor, or SideSwapper)
+	userType := helper.DetermineUserType(r.DB, userUUID)
+	if userType == "" {
+		return nil, fmt.Errorf("unable to determine user type for ID: %s", userUUID)
+	}
+
 	productUUID, err := uuid.Parse(productID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid product ID: %w", err)
@@ -93,6 +101,7 @@ func (r *mutationResolver) AddFavoriteProduct(ctx context.Context, productID str
 
 	// Create a new FavoriteProduct instance
 	favorite := &model.FavoriteProduct{
+		UserType:  userType,
 		UserID:    userUUID,
 		ProductID: productUUID,
 		Product:   &product, // This assumes your FavoriteProduct model has a Product field for the product details

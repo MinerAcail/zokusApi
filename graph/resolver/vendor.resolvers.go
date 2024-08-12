@@ -18,17 +18,17 @@ import (
 )
 
 func (r *favoriteVendorResolver) ID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
-	id := obj.ID.String()
+	id := obj.UserID.String()
 	return id, nil
 }
 
 func (r *favoriteVendorResolver) UserID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
-	id := obj.ID.String()
+	id := obj.UserID.String()
 	return id, nil
 }
 
 func (r *favoriteVendorResolver) VendorID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
-	id := obj.ID.String()
+	id := obj.UserID.String()
 	return id, nil
 }
 
@@ -164,14 +164,40 @@ func (r *mutationResolver) CreateVendor(ctx context.Context, mateData *model.Upl
 }
 
 func (r *mutationResolver) AddFavoriteVendor(ctx context.Context, vendorID string) (*model.FavoriteVendor, error) {
-	VendorIDStr, err := r.Query().GetID(ctx)
+	IDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user ID: %v", err)
 	}
-	userUUID, err := uuid.Parse(*VendorIDStr)
+	userUUID, err := uuid.Parse(*IDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
+
+	// Verify if user exists in any of the tables
+	userType := helper.DetermineUserType(r.DB, userUUID)
+	if userType == "" {
+		return nil, fmt.Errorf("unable to determine user type for ID: %s", userUUID)
+	}
+
+	// // Ensure the userUUID exists in the corresponding table before proceeding
+	// switch userType {
+	// case model.UserTypeUser:
+	// 	var user model.User
+	// 	if err := r.DB.Where("id = ?", userUUID).First(&user).Error; err != nil {
+	// 		return nil, fmt.Errorf("user not found: %w", err)
+	// 	}
+	// case model.UserTypeVendor:
+	// 	var vendor model.Vendor
+	// 	if err := r.DB.Where("id = ?", userUUID).First(&vendor).Error; err != nil {
+	// 		return nil, fmt.Errorf("vendor not found: %w", err)
+	// 	}
+	// case model.UserTypeSideswapper:
+	// 	var sideSwapper model.SideSwapper
+	// 	if err := r.DB.Where("id = ?", userUUID).First(&sideSwapper).Error; err != nil {
+	// 		return nil, fmt.Errorf("side swapper not found: %w", err)
+	// 	}
+	// }
+
 	vendorUUID, err := uuid.Parse(vendorID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid vendor ID: %w", err)
@@ -188,8 +214,10 @@ func (r *mutationResolver) AddFavoriteVendor(ctx context.Context, vendorID strin
 	}
 
 	favorite := &model.FavoriteVendor{
+		UserType: userType,
 		UserID:   userUUID,
 		VendorID: vendorUUID,
+		// CreatedAt: time.Now(), // Ensure CreatedAt is set correctly
 	}
 
 	if err := r.DB.Create(favorite).Error; err != nil {
@@ -391,3 +419,43 @@ func (r *Resolver) Vendor() generated.VendorResolver { return &vendorResolver{r}
 
 type favoriteVendorResolver struct{ *Resolver }
 type vendorResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+func (r *favoriteVendorResolver) UserType(ctx context.Context, obj *model.FavoriteVendor) (model.UserType, error) {
+	panic(fmt.Errorf("not implemented: UserType - userType"))
+}
+func (r *mutationResolver) DeleteAll(ctx context.Context) (*bool, error) {
+	// Begin a transaction
+	tx := r.DB.Begin()
+
+	// Delete all SideSwapperProduct records first to avoid foreign key constraint violations
+	if err := tx.Unscoped().Where("1 = 1").Delete(&model.FavoriteVendor{}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("could not delete SideSwapperProducts: %v", err)
+	}
+
+	// // Delete all Pricing records related to deleted SideSwapperProducts
+	// if err := tx.Unscoped().Where("1 = 1").Delete(&model.Pricing{}).Error; err != nil {
+	// 	tx.Rollback()
+	// 	return nil, fmt.Errorf("could not delete Pricing: %v", err)
+	// }
+
+	// // Delete all SideSwapper records
+	// if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapper{}).Error; err != nil {
+	// 	tx.Rollback()
+	// 	return nil, fmt.Errorf("could not delete SideSwappers: %v", err)
+	// }
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %v", err)
+	}
+
+	success := true
+	return &success, nil
+}

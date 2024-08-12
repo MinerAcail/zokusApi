@@ -53,9 +53,16 @@ input NewSideSwapper {
   pin: String!
 }
 
+type SideSwapperProductMetaData {
+  VendorName: String!
+  count: Int!
+  products: [Product!]!
+}
 extend type Query {
   getSideSwapper(id: String!): SideSwapper!
   getAllSideSwappers: [SideSwapper!]!
+  getSideSwapperProducts: [SideSwapperProductMetaData!]!
+  getAddedSideSwapperProducts:[SideSwapperProduct!]!
 }
 
 extend type Mutation {
@@ -64,6 +71,10 @@ extend type Mutation {
     percentage: String!
     productId: String!
   ): SideSwapperProduct!
+  removeSideSwapperProduct(
+    productId: String!
+  ): Boolean!
+
   deleteSideSwapperById(id: String!): Boolean
   deleteAllSideSwapper: Boolean
 }

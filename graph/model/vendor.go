@@ -41,9 +41,10 @@ type NewVendor struct {
 }
 
 
+
 type FavoriteVendor struct {
     ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-    User      *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
+    UserType  UserType    `gorm:"type:varchar(20)" json:"userType"` // Holds "User", "Vendor", or "SideSwapper"
     UserID    uuid.UUID `gorm:"type:uuid" json:"userId"`
     Vendor    *Vendor   `gorm:"foreignKey:VendorID" json:"vendor,omitempty"`
     VendorID  uuid.UUID `gorm:"type:uuid" json:"vendorId"`

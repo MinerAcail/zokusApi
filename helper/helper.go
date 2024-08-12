@@ -129,3 +129,23 @@ func UploadFileToMinio(ctx context.Context, minioClient *minio.Client, bucketNam
 
 	return fileURL, nil
 }
+
+// Helper function to determine user type
+func DetermineUserType(db *gorm.DB, userUUID uuid.UUID) model.UserType {
+	var user model.User
+	if err := db.Where("id = ?", userUUID).First(&user).Error; err == nil {
+		return model.UserTypeUser
+	}
+
+	var vendor model.Vendor
+	if err := db.Where("id = ?", userUUID).First(&vendor).Error; err == nil {
+		return model.UserTypeVendor
+	}
+
+	var sideSwapper model.SideSwapper
+	if err := db.Where("id = ?", userUUID).First(&sideSwapper).Error; err == nil {
+		return model.UserTypeSideswapper
+	}
+
+	return ""
+}

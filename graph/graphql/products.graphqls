@@ -39,7 +39,7 @@ type ProductRequest {
 
 type FavoriteProduct {
   id: String!
-  user: User!
+userType: UserType!
   userId: String!
   product: Product!
   productId: String!

@@ -32,15 +32,14 @@ type SideSwapperProduct struct {
 	ID            uuid.UUID    `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
 	SideSwapper   *SideSwapper `json:"sideSwapper,omitempty"`
 	SideSwapperID uuid.UUID    `gorm:"type:uuid" json:"sideSwapperID"`
-	// Vendor        *Vendor      `json:"vendor,omitempty"`
-	// VendorID      uuid.UUID    `gorm:"type:uuid" json:"vendorId"`
-	Vendor    *Vendor    `gorm:"foreignKey:VendorID" json:"vendor,omitempty"`
-	VendorID  uuid.UUID  `gorm:"type:uuid" json:"vendorId"`
-	Product   *Product   `json:"product,omitempty"`
-	ProductID uuid.UUID  `gorm:"type:uuid" json:"productId"`
-	PricingID *uuid.UUID `gorm:"type:uuid" json:"pricingId"` // Reference to Pricing
-	Pricing   *Pricing   `gorm:"foreignKey:PricingID" json:"pricing"`
+	Vendor        *Vendor      `gorm:"foreignKey:VendorID" json:"vendor,omitempty"`
+	VendorID      uuid.UUID    `gorm:"type:uuid" json:"vendorId"`
+	Product       *Product     `json:"product,omitempty"`
+	ProductID     uuid.UUID    `gorm:"type:uuid" json:"productId"`
+	PricingID     *uuid.UUID   `gorm:"type:uuid" json:"pricingId"` // Reference to Pricing
+	Pricing       *Pricing     `gorm:"foreignKey:PricingID" json:"pricing"`
 }
+
 
 type ProductInventoryMetaData struct {
 	ID              uuid.UUID    `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`

@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
 	"github.com/mineracail/zokus/helper"
+	"gorm.io/gorm"
 )
 
 func (r *mutationResolver) CreateSideSwapper(ctx context.Context, input model.NewSideSwapper) (*model.SideSwapper, error) {
@@ -59,26 +61,31 @@ func (r *mutationResolver) AddSideSwapperProduct(ctx context.Context, percentage
 		return nil, fmt.Errorf("invalid product ID: %w", err)
 	}
 
-	// Fetch product and swapper details from the database
+	// Fetch product details including the Vendor
 	var product model.Product
 	if err := r.DB.Where("id = ?", productUUID).Preload("Vendor").First(&product).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch product: %v", err)
 	}
+
+	// Fetch swapper details
 	var swapper model.SideSwapper
 	if err := r.DB.Where("id = ?", swapperUUID).First(&swapper).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch swapper: %v", err)
 	}
 
-	// Convert percentage to float64
-	markupPercentage, err := strconv.ParseFloat(percentage, 64)
+	// Convert percentage string to float64
+	markupPercentage, err := strconv.ParseFloat(strings.TrimSpace(percentage), 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid percentage value: %w", err)
 	}
-
+	// Validate percentage range (0 to 100)
+	if markupPercentage < 0 || markupPercentage > 100 {
+		return nil, fmt.Errorf("percentage value out of range: %v", markupPercentage)
+	}
 	// Convert product.Price from *string to float64
 	var basePrice float64
 	if product.Price != nil {
-		basePrice, err = strconv.ParseFloat(*product.Price, 64)
+		basePrice, err = strconv.ParseFloat(strings.TrimSpace(*product.Price), 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse product price: %v", err)
 		}
@@ -86,15 +93,16 @@ func (r *mutationResolver) AddSideSwapperProduct(ctx context.Context, percentage
 		return nil, fmt.Errorf("product price is not available")
 	}
 
-	// Create and save the Pricing instance
+	// Create the Pricing instance
 	pricing := &model.Pricing{
 		BasePrice:        basePrice,
 		MarkupPercentage: markupPercentage,
 	}
+
+	// Save the Pricing instance
 	if err := r.DB.Create(pricing).Error; err != nil {
 		return nil, fmt.Errorf("failed to save pricing: %v", err)
 	}
-	log.Printf("Vendor details: %+v", product.Vendor)
 
 	// Create and save the SideSwapperProduct instance
 	sideSwapperProduct := &model.SideSwapperProduct{
@@ -102,16 +110,58 @@ func (r *mutationResolver) AddSideSwapperProduct(ctx context.Context, percentage
 		SideSwapper:   &swapper,
 		ProductID:     productUUID,
 		Product:       &product,
-		PricingID:     &pricing.ID, // Reference to Pricing
+		PricingID:     &pricing.ID,
 		Pricing:       pricing,
-		Vendor:        product.Vendor,   // Ensure this is correctly referenced
-		VendorID:      product.VendorID, // Ensure this is correctly referenced
+		Vendor:        product.Vendor,
+		VendorID:      product.VendorID,
 	}
+
+	// Save the SideSwapperProduct instance
 	if err := r.DB.Create(sideSwapperProduct).Error; err != nil {
 		return nil, fmt.Errorf("failed to save side swapper product: %v", err)
 	}
 
 	return sideSwapperProduct, nil
+}
+
+func (r *mutationResolver) RemoveSideSwapperProduct(ctx context.Context, productID string) (bool, error) {
+	// Retrieve and parse swapper ID from context
+	swapperIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to get swapper ID: %v", err)
+	}
+	swapperUUID, err := uuid.Parse(*swapperIDStr)
+	if err != nil {
+		return false, fmt.Errorf("invalid swapper ID: %w", err)
+	}
+
+	// Parse product ID
+	productUUID, err := uuid.Parse(productID)
+	if err != nil {
+		return false, fmt.Errorf("invalid product ID: %w", err)
+	}
+
+	// Find the SideSwapperProduct entry
+	var sideSwapperProduct model.SideSwapperProduct
+	if err := r.DB.Where("side_swapper_id = ? AND product_id = ?", swapperUUID, productUUID).First(&sideSwapperProduct).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, fmt.Errorf("side swapper product not found: %v", err)
+		}
+		return false, fmt.Errorf("failed to find side swapper product: %v", err)
+	}
+	// Delete the associated Pricing entry if it exists
+	if sideSwapperProduct.Pricing != nil {
+		if err := r.DB.Delete(sideSwapperProduct.Pricing).Error; err != nil {
+			return false, fmt.Errorf("failed to delete pricing: %v", err)
+		}
+	}
+
+	// Delete the SideSwapperProduct entry
+	if err := r.DB.Delete(&sideSwapperProduct).Error; err != nil {
+		return false, fmt.Errorf("failed to delete side swapper product: %v", err)
+	}
+
+	return true, nil
 }
 
 func (r *mutationResolver) DeleteSideSwapperByID(ctx context.Context, id string) (*bool, error) {
@@ -126,35 +176,34 @@ func (r *mutationResolver) DeleteSideSwapperByID(ctx context.Context, id string)
 }
 
 func (r *mutationResolver) DeleteAllSideSwapper(ctx context.Context) (*bool, error) {
-		// Begin a transaction
-		tx := r.DB.Begin()
+	// Begin a transaction
+	tx := r.DB.Begin()
 
-		// Delete all SideSwapperProduct records first to avoid foreign key constraint violations
-		if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapperProduct{}).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("could not delete SideSwapperProducts: %v", err)
-		}
-	
-		// Delete all Pricing records related to deleted SideSwapperProducts
-		if err := tx.Unscoped().Where("1 = 1").Delete(&model.Pricing{}).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("could not delete Pricing: %v", err)
-		}
-	
-		// Delete all SideSwapper records
-		if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapper{}).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("could not delete SideSwappers: %v", err)
-		}
-	
-		// Commit the transaction
-		if err := tx.Commit().Error; err != nil {
-			return nil, fmt.Errorf("could not commit transaction: %v", err)
-		}
-	
-		success := true
-		return &success, nil
+	// Delete all SideSwapperProduct records first to avoid foreign key constraint violations
+	if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapperProduct{}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("could not delete SideSwapperProducts: %v", err)
+	}
 
+	// Delete all Pricing records related to deleted SideSwapperProducts
+	if err := tx.Unscoped().Where("1 = 1").Delete(&model.Pricing{}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("could not delete Pricing: %v", err)
+	}
+
+	// Delete all SideSwapper records
+	if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapper{}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("could not delete SideSwappers: %v", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %v", err)
+	}
+
+	success := true
+	return &success, nil
 }
 
 func (r *pricingResolver) ID(ctx context.Context, obj *model.Pricing) (string, error) {
@@ -186,12 +235,84 @@ func (r *queryResolver) GetSideSwapper(ctx context.Context, id string) (*model.S
 func (r *queryResolver) GetAllSideSwappers(ctx context.Context) ([]*model.SideSwapper, error) {
 	// Fetch all SideSwappers from the database
 	var sideSwappers []*model.SideSwapper
-	err := r.DB.Preload("Products.Pricing").Preload("Products.SideSwapper").Find(&sideSwappers).Error
+	err := r.DB.Preload("Products.Pricing").Preload("Products.Vendor").Preload("Products.SideSwapper").Find(&sideSwappers).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve SideSwappers: %v", err)
 	}
 
 	return sideSwappers, nil
+}
+
+func (r *queryResolver) GetSideSwapperProducts(ctx context.Context) ([]*model.SideSwapperProductMetaData, error) {
+	swapperIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get swapper ID: %v", err)
+	}
+	swapperUUID, err := uuid.Parse(*swapperIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid swapper ID: %w", err)
+	}
+
+	var sideSwapperProducts []*model.SideSwapperProduct
+	if err := r.DB.Preload("Product").Preload("Product.Vendor").Preload("Vendor").Where("side_swapper_id = ?", swapperUUID).Find(&sideSwapperProducts).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch side swapper products: %w", err)
+	}
+
+	// Debugging output
+	log.Printf("Fetched SideSwapperProducts: %v", sideSwapperProducts)
+
+	// Process and group products
+	vendorProductsMap := make(map[uuid.UUID]*model.SideSwapperProductMetaData)
+	for _, ssp := range sideSwapperProducts {
+		if ssp.Product == nil || ssp.Vendor == nil {
+			log.Printf("Skipping SideSwapperProduct due to missing Product or Vendor: %v", ssp)
+			continue
+		}
+
+		vendorID := ssp.VendorID
+		product := ssp.Product
+
+		if _, exists := vendorProductsMap[vendorID]; !exists {
+			vendorProductsMap[vendorID] = &model.SideSwapperProductMetaData{
+				VendorName: ssp.Vendor.Name,
+				Count:      0,
+				Products:   []*model.Product{},
+			}
+		}
+
+		vendorProductsMap[vendorID].Products = append(vendorProductsMap[vendorID].Products, product)
+		vendorProductsMap[vendorID].Count++
+	}
+
+	var vendorProductsGroups []*model.SideSwapperProductMetaData
+	for _, vpg := range vendorProductsMap {
+		vendorProductsGroups = append(vendorProductsGroups, vpg)
+	}
+
+	// Debugging output
+	log.Printf("VendorProductsGroups: %v", vendorProductsGroups)
+
+	return vendorProductsGroups, nil
+}
+
+func (r *queryResolver) GetAddedSideSwapperProducts(ctx context.Context) ([]*model.SideSwapperProduct, error) {
+	// Retrieve and parse swapper ID from context
+	swapperIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get swapper ID: %v", err)
+	}
+	swapperUUID, err := uuid.Parse(*swapperIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid side swapper ID: %w", err)
+	}
+
+	// Fetch products for the specific side swapper
+	var products []*model.SideSwapperProduct
+	if err := r.DB.Where("side_swapper_id = ?", swapperUUID).Preload("Product").Preload("SideSwapper").Preload("Pricing").Find(&products).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch side swapper products: %v", err)
+	}
+
+	return products, nil
 }
 
 func (r *sideSwapperResolver) ID(ctx context.Context, obj *model.SideSwapper) (string, error) {

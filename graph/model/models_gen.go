@@ -76,6 +76,12 @@ type SalesReport struct {
 	TotalOrders int     `json:"totalOrders"`
 }
 
+type SideSwapperProductMetaData struct {
+	VendorName string     `json:"VendorName"`
+	Count      int        `json:"count"`
+	Products   []*Product `json:"products"`
+}
+
 type UploadFile struct {
 	ID   string         `json:"id"`
 	File graphql.Upload `json:"file"`
@@ -136,5 +142,48 @@ func (e *ProductState) UnmarshalGQL(v interface{}) error {
 }
 
 func (e ProductState) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type UserType string
+
+const (
+	UserTypeUser        UserType = "USER"
+	UserTypeVendor      UserType = "VENDOR"
+	UserTypeSideswapper UserType = "SIDESWAPPER"
+)
+
+var AllUserType = []UserType{
+	UserTypeUser,
+	UserTypeVendor,
+	UserTypeSideswapper,
+}
+
+func (e UserType) IsValid() bool {
+	switch e {
+	case UserTypeUser, UserTypeVendor, UserTypeSideswapper:
+		return true
+	}
+	return false
+}
+
+func (e UserType) String() string {
+	return string(e)
+}
+
+func (e *UserType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = UserType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid UserType", str)
+	}
+	return nil
+}
+
+func (e UserType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

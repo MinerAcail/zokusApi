@@ -14,13 +14,19 @@ type Vendor {
 }
 type FavoriteVendor {
   id: String!
-  user: User!
+  userType: UserType!
   userId: String!
   vendor: Vendor!
   vendorId: String!
   createdAt: Time!
 }
+# union Returns = Vendor | User | SideSwapper
 
+enum UserType {
+  USER
+  VENDOR
+  SIDESWAPPER
+}
 type FavoriteVendorMateData {
   favoriteVendors: [FavoriteVendor!]!
   count: Int!
