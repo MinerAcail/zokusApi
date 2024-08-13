@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -148,4 +149,29 @@ func DetermineUserType(db *gorm.DB, userUUID uuid.UUID) model.UserType {
 	}
 
 	return ""
+}
+
+// fileURL := fmt.Sprintf("/minio/%s/%s", bucketName, fileName)
+// bucketName := fmt.Sprintf("vendor-%s-bucket", vendorIDStr)
+
+func ImageFromMinIOURL(ctx context.Context, minioClient *minio.Client, fileURL string) ([]byte, error) {
+	// Extract bucketName and fileName from the URL
+	parts := strings.SplitN(fileURL, "/", 4)
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("invalid file URL format: %s", fileURL)
+	}
+	bucketName := parts[2]
+	fileName := parts[3]
+
+	object, err := minioClient.GetObject(ctx, bucketName, fileName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching file from MinIO: %w", err)
+	}
+	defer object.Close()
+
+	imageData, err := io.ReadAll(object)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file from MinIO: %w", err)
+	}
+	return imageData, nil
 }

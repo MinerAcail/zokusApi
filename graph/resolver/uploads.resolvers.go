@@ -22,6 +22,7 @@ import (
 	"github.com/mineracail/zokus/database/redis"
 	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
+	"github.com/mineracail/zokus/helper"
 	minio "github.com/minio/minio-go/v7"
 )
 
@@ -212,6 +213,130 @@ func (r *mutationResolver) SingleUpload(ctx context.Context, bgFiles []*graphql.
 		Bg:      bgBase64,
 		Combine: &combinedBase64,
 	}, nil
+}
+
+func (r *mutationResolver) AdvertisementUpload(ctx context.Context, bgFiles []*graphql.Upload, productID string) (*model.ImageFiles, error) {
+	rdb := redis.ConfigureRedis()
+	fmt.Printf("Redis client: %v\n", rdb)
+	fmt.Printf("Product ID: %s\n", productID)
+
+	var product model.Product
+	if err := r.DB.Where("id = ?", productID).Find(&product).Error; err != nil {
+		return nil, err
+	}
+	// Helper function to process and store images in Redis
+	processAndStoreImages := func(files []*graphql.Upload, prefix string) ([]string, error) {
+		var imageKeys []string
+		for _, file := range files {
+			buf := new(bytes.Buffer)
+			if _, err := io.Copy(buf, file.File); err != nil {
+				return nil, fmt.Errorf("error reading file: %w", err)
+			}
+
+			uniqueID := uuid.New().String()
+			imageKey := fmt.Sprintf("%s_image_key_%s", prefix, uniqueID)
+			if err := redis.PassByteSliceToRedis(rdb, imageKey, buf.Bytes()); err != nil {
+				return nil, fmt.Errorf("error storing byte slice in Redis: %w", err)
+			}
+			imageKeys = append(imageKeys, imageKey)
+		}
+		return imageKeys, nil
+	}
+
+	// Helper function to fetch images from MinIO and store them in Redis
+	processAndStoreMinIOImages := func(imageUrls []string, prefix string) ([]string, error) {
+		var imageKeys []string
+		for _, url := range imageUrls {
+			// Fetch the image data from MinIO
+			imageData, err := helper.ImageFromMinIOURL(ctx, r.MinIOClient, url)
+			if err != nil {
+				return nil, fmt.Errorf("error retrieving image data from MinIO: %w", err)
+			}
+
+			uniqueID := uuid.New().String()
+			imageKey := fmt.Sprintf("%s_image_key_%s", prefix, uniqueID)
+			if err := redis.PassByteSliceToRedis(rdb, imageKey, imageData); err != nil {
+				return nil, fmt.Errorf("error storing byte slice in Redis: %w", err)
+			}
+			imageKeys = append(imageKeys, imageKey)
+		}
+		return imageKeys, nil
+	}
+
+	var wg sync.WaitGroup
+	var bgImageKeys, overlayImageKeys []string
+	var bgErr, overlayErr error
+
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		bgImageKeys, bgErr = processAndStoreImages(bgFiles, "bg")
+		if bgErr != nil {
+			log.Printf("Error processing background images: %v", bgErr)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		overlayImageKeys, overlayErr = processAndStoreMinIOImages(product.ImageUrls, "overlay")
+		if overlayErr != nil {
+			log.Printf("Error processing overlay images: %v", overlayErr)
+		}
+	}()
+	wg.Wait()
+
+	if bgErr != nil {
+		return nil, fmt.Errorf("error processing background images: %w", bgErr)
+	}
+	if overlayErr != nil {
+		return nil, fmt.Errorf("error processing overlay images: %w", overlayErr)
+	}
+
+	var ffmpegWg sync.WaitGroup
+	var bgOutputBytes, overlayOutputBytes []byte
+	var bgFfmpegErr, overlayFfmpegErr error
+
+	ffmpegWg.Add(2)
+	go func() {
+		defer ffmpegWg.Done()
+		bgOutputBytes, bgFfmpegErr = redis.PassImagesToFfmpeg_BG_Bytes(bgImageKeys, rdb, "scale=-1:1920")
+		if bgFfmpegErr != nil {
+			log.Printf("Error creating background video: %v", bgFfmpegErr)
+		}
+	}()
+	go func() {
+		defer ffmpegWg.Done()
+		overlayOutputBytes, overlayFfmpegErr = redis.PassImagesToFfmpeg_OVERLAY_Bytes(overlayImageKeys, rdb, "scale=972:768")
+		if overlayFfmpegErr != nil {
+			log.Printf("Error creating overlay video: %v", overlayFfmpegErr)
+		}
+	}()
+	ffmpegWg.Wait()
+
+	if bgFfmpegErr != nil {
+		return nil, fmt.Errorf("error creating background video: %w", bgFfmpegErr)
+	}
+	if overlayFfmpegErr != nil {
+		return nil, fmt.Errorf("error creating overlay video: %w", overlayFfmpegErr)
+	}
+
+
+	combinedVideo, err := redis.CombineVideosFromMemory(bgOutputBytes, overlayOutputBytes, "mp4", 54, 210)
+	if err != nil {
+		return nil, fmt.Errorf("error combining videos: %w", err)
+	}
+
+	combinedBase64 := base64.StdEncoding.EncodeToString(combinedVideo)
+	bgBase64 := base64.StdEncoding.EncodeToString(bgOutputBytes)
+	overlayBase64 := base64.StdEncoding.EncodeToString(overlayOutputBytes)
+
+	return &model.ImageFiles{
+		Overlay: overlayBase64,
+		Bg:      bgBase64,
+		Combine: &combinedBase64,
+	}, nil
+
 }
 
 func (r *mutationResolver) CombineUpload(ctx context.Context, input *string) (*string, error) {

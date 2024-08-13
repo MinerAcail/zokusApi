@@ -7,6 +7,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
@@ -57,7 +58,10 @@ func (r *mutationResolver) VendorUpload(ctx context.Context, files []*graphql.Up
 
 		// Create a reader for the file
 		fileReader := file.File
-
+		// Close the file if it's closeable
+		if closer, ok := fileReader.(io.Closer); ok {
+			defer closer.Close()
+		}
 		// Upload the file to MinIO
 		_, err := r.MinIOClient.PutObject(ctx, bucketName, fileName, fileReader, file.Size, minio.PutObjectOptions{ContentType: file.ContentType})
 		if err != nil {

@@ -32,5 +32,6 @@ extend type Query {
 extend type Mutation {
   overLayUpload(files: [UploadFile]!): [File!]!
   singleUpload(bgFiles: [Upload], overlayFiles: [Upload]): ImageFiles!
+  advertisementUpload(bgFiles: [Upload], productId:String!): ImageFiles!
   combineUpload(input: String): String
 }

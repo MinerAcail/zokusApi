@@ -1,0 +1,9 @@
+extend type Query {
+  getProductUrl(productId:String!): [String]!
+
+}
+
+extend type Mutation {
+  make(productId:String!): Product!
+  
+}
