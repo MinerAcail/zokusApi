@@ -36,10 +36,9 @@ type ProductRequest struct {
 
 type FavoriteProduct struct {
 	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	 UserType  UserType    `gorm:"type:varchar(20)" json:"userType"` // Holds "User", "Vendor", or "SideSwapper"
-    UserID    uuid.UUID `gorm:"type:uuid" json:"userId"`
+	UserType  UserType  `gorm:"type:varchar(20)" json:"userType"` // Holds "User", "Vendor", or "SideSwapper"
+	UserID    uuid.UUID `gorm:"type:uuid" json:"userId"`
 	Product   *Product  `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 	ProductID uuid.UUID `gorm:"type:uuid" json:"productId"`
 	CreatedAt time.Time `json:"createdAt"`
 }
-

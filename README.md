@@ -1,4 +1,4 @@
-sudo docker exec -it zokusapi-zukudb-1 psql -U justzoku -d testzoku 
+    sudo docker exec -it zokusapi-zukudb-1 psql -U justzoku -d testzoku 
 
 delect a table 
 DROP TABLE users ;

@@ -49,6 +49,9 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.Product{},
 		&model.UserOrder{},
 		&model.ProductRequest{},
+		&model.Cart{},
+		&model.CartItem	{},
+
 	// &model.{},
 	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
