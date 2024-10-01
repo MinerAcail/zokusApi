@@ -6,7 +6,7 @@ drop all table
 DO $$ 
 DECLARE 
     r RECORD;
-BEGIN 
+        BEGIN   
     FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP 
         EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
     END LOOP;
@@ -20,6 +20,7 @@ go run github.com/99designs/gqlgen generate
 
 only for GORM or psql
 
+const { hasAccess:swapperHasAccess } = useProtect([ProtectType.swapper]); 
 
 
 

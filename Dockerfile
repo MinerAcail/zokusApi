@@ -1,25 +1,26 @@
-# Use the official Golang image as the base image
-FROM golang:1.22-alpine
+        # Use the official Golang image as the base image
+        FROM golang:1.22-alpine
 
-# Set the current working directory inside the container
-WORKDIR /usr/src/app
+        # Set the current working directory inside the container
+        WORKDIR /usr/src/app
 
-# Install Air (a live-reloading tool for Go)
-RUN go install github.com/air-verse/air@latest
+        # Install Air (a live-reloading tool for Go)
+        RUN go install github.com/air-verse/air@latest
 
-# Install FFmpeg and curl
-RUN apk update && \
-    apk add --no-cache ffmpeg curl
-
-
-
-# Copy the Go modules files
-COPY go.mod go.sum ./
-
-# Download and install Go modules (dependencies)
-RUN go mod download
+        # Install FFmpeg and curl
+        RUN apk update && \
+            apk add --no-cache ffmpeg curl
 
 
-# Copy the rest of the application source code
-COPY . .
 
+        # Copy the Go modules files
+        COPY go.mod go.sum ./
+
+        # Download and install Go modules (dependencies)
+        RUN go mod download
+
+
+        # Copy the rest of the application source code
+        COPY . .
+
+            

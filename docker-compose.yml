@@ -6,9 +6,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=${UserName}
-      - POSTGRES_PASSWORD=${Password}
-      - POSTGRES_DB=${DBName}
+        - POSTGRES_USER=${UserName}
+        - POSTGRES_PASSWORD=${Password}
+        - POSTGRES_DB=${DBName}
     volumes:
       - zuko-data:/var/lib/postgresql/data
     networks:
@@ -43,7 +43,7 @@ services:
       - .env
     ports:
       - "3001:3001"
-    volumes:
+    volumes:  
       - .:/usr/src/app
     environment:
       - Port=${Port}
@@ -61,7 +61,7 @@ services:
 volumes:
   zuko-data:
   minio-data:
-  redis-data:
+  redis-data:     
 
 networks:
   zuko-network:
