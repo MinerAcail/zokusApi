@@ -83,14 +83,13 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 		}
 	}
 
-	
 	// Fetch the product
 	var product model.Product
 	if err := r.DB.Where("id = ?", productID).First(&product).Error; err != nil {
 		return nil, fmt.Errorf("product not found: %w", err)
 	}
 	// Log productID and product.ID
-	
+
 	// Check if the item is already in the cart
 	var cartItem model.CartItem
 	if err := r.DB.Where("cart_id = ? AND product_id = ?", cart.ID, product.ID).Preload("Product").First(&cartItem).Error; err == nil {
@@ -107,7 +106,7 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 			Product:   &product, // Ensure product is linked here
 			Quantity:  quantity,
 		}
-		
+
 		if err := r.DB.Create(&cartItem).Error; err != nil {
 			return nil, err
 		}
@@ -117,44 +116,44 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 	return &cartItem, nil
 }
 
-	func (r *mutationResolver) DecrementItemToCart(ctx context.Context, productID string) (*model.CartItem, error) {
-		// Get the user ID from the context
-		userIDStr, err := r.Query().GetID(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user ID: %v", err)
-		}
+func (r *mutationResolver) DecrementItemToCart(ctx context.Context, productID string) (*model.CartItem, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
 
-		// Parse UUID
-		userUUID, err := uuid.Parse(*userIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid user ID: %w", err)
-		}
+	// Parse UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
 
-		// Parse UUID for product
-		productUUID, err := uuid.Parse(productID)
-		if err != nil {
-			return nil, fmt.Errorf("invalid product ID: %w", err)
-		}
+	// Parse UUID for product
+	productUUID, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %w", err)
+	}
 
-		// Determine the user type (User, Vendor, or SideSwapper)
-		userType := helper.DetermineUserType(r.DB, userUUID)
-		if userType == "" {
-			return nil, fmt.Errorf("unable to determine user type for ID: %s", userUUID)
-		}
+	// Determine the user type (User, Vendor, or SideSwapper)
+	userType := helper.DetermineUserType(r.DB, userUUID)
+	if userType == "" {
+		return nil, fmt.Errorf("unable to determine user type for ID: %s", userUUID)
+	}
 
-		// Fetch the user's cart
-		var cart model.Cart
-		if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
-			return nil, fmt.Errorf("failed to find cart: %w", err)
-		}
+	// Fetch the user's cart
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("failed to find cart: %w", err)
+	}
 
-		// Fetch the cart item
-		var cartItem model.CartItem
-		if err := r.DB.Where("cart_id = ? AND product_id = ?", cart.ID, productUUID).Preload("Product").First(&cartItem).Error; err != nil {
-			return nil, fmt.Errorf("item not found in cart: %w", err)
-		}
+	// Fetch the cart item
+	var cartItem model.CartItem
+	if err := r.DB.Where("cart_id = ? AND product_id = ?", cart.ID, productUUID).Preload("Product").First(&cartItem).Error; err != nil {
+		return nil, fmt.Errorf("item not found in cart: %w", err)
+	}
 
-		// Decrement the quantity or remove the item if the quantity reaches 1 or less
+	// Decrement the quantity or remove the item if the quantity reaches 1 or less
 	if cartItem.Quantity < 1 {
 		// Remove the item from the cart
 		if err := r.DB.Delete(&cartItem).Error; err != nil {
@@ -168,10 +167,9 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 	if err := r.DB.Save(&cartItem).Error; err != nil {
 		return nil, fmt.Errorf("failed to update cart item: %w", err)
 	}
-		
 
-		return &cartItem, nil
-	}
+	return &cartItem, nil
+}
 
 func (r *mutationResolver) RemoveItemFromCart(ctx context.Context, cartItemID string) (bool, error) {
 	// Parse UUID

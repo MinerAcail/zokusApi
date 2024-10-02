@@ -15,141 +15,141 @@ import (
 	"github.com/mineracail/zokus/middleware"
 )
 
-	func (r *mutationResolver) DelectTable(ctx context.Context) (bool, error) {
-		panic(fmt.Errorf("not implemented: DelectTable - delectTable"))
+func (r *mutationResolver) DelectTable(ctx context.Context) (bool, error) {
+	panic(fmt.Errorf("not implemented: DelectTable - delectTable"))
+}
+
+func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (model.Returns, error) {
+	// Try to find a user with the given number and pin
+	user := &model.User{}
+	if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(user).Error; err == nil {
+		// Generate a new token for the authenticated vendor
+		middleware.SetTokenForContext(ctx, *user.Type, user.ID.String())
+
+		return user, nil
 	}
 
-	func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (model.Returns, error) {
-		// Try to find a user with the given number and pin
-		user := &model.User{}
-		if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(user).Error; err == nil {
-			// Generate a new token for the authenticated vendor
-			middleware.SetTokenForContext(ctx, *user.Type, user.ID.String())
+	// If no user found, try to find a vendor with the given number and pin
+	vendor := &model.Vendor{}
 
-			return user, nil
-		}
+	if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(vendor).Error; err == nil {
+		middleware.SetTokenForContext(ctx, *vendor.Type, vendor.ID.String())
 
-		// If no user found, try to find a vendor with the given number and pin
-		vendor := &model.Vendor{}
-
-		if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(vendor).Error; err == nil {
-			middleware.SetTokenForContext(ctx, *vendor.Type, vendor.ID.String())
-
-			return vendor, nil
-		}
-
-		SideSwapper := &model.SideSwapper{}
-
-		if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(SideSwapper).Error; err == nil {
-			middleware.SetTokenForContext(ctx, *SideSwapper.Type, SideSwapper.ID.String())
-
-			return SideSwapper, nil
-		}
-
-		// ffwf
-
-		// Return an error if neither a user nor a vendor was found
-		return nil, fmt.Errorf("invalid number or pin")
+		return vendor, nil
 	}
 
-	func (r *mutationResolver) Memberlogin(ctx context.Context, input model.LoginInput) (model.Returns, error) {
-		panic(fmt.Errorf("not implemented: Memberlogin - memberlogin"))
+	SideSwapper := &model.SideSwapper{}
+
+	if err := r.DB.Where("number = ? AND pin = ?", input.Number, input.Pin).First(SideSwapper).Error; err == nil {
+		middleware.SetTokenForContext(ctx, *SideSwapper.Type, SideSwapper.ID.String())
+
+		return SideSwapper, nil
 	}
 
-	func (r *mutationResolver) LogOut(ctx context.Context) (bool, error) {
-		// Retrieve the CookieAccess object from the context
-		cookieAccess := middleware.GetCookieAccess(ctx)
-		if cookieAccess == nil {
-			return false, fmt.Errorf("failed to retrieve cookie access from context")
-		}
+	// ffwf
 
-		// Clear the authentication cookie
-		err := cookieAccess.Logout()
-		if err != nil {
-			return false, fmt.Errorf("failed to log out: %w", err)
-		}
+	// Return an error if neither a user nor a vendor was found
+	return nil, fmt.Errorf("invalid number or pin")
+}
 
-		// Return success
-		return true, nil
+func (r *mutationResolver) Memberlogin(ctx context.Context, input model.LoginInput) (model.Returns, error) {
+	panic(fmt.Errorf("not implemented: Memberlogin - memberlogin"))
+}
+
+func (r *mutationResolver) LogOut(ctx context.Context) (bool, error) {
+	// Retrieve the CookieAccess object from the context
+	cookieAccess := middleware.GetCookieAccess(ctx)
+	if cookieAccess == nil {
+		return false, fmt.Errorf("failed to retrieve cookie access from context")
 	}
 
-	func (r *queryResolver) GetID(ctx context.Context) (*string, error) {
-		id, err := middleware.GetIDFromContext(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ID from context: %w", err)
-		}
-		return &id, nil
+	// Clear the authentication cookie
+	err := cookieAccess.Logout()
+	if err != nil {
+		return false, fmt.Errorf("failed to log out: %w", err)
 	}
 
-	func (r *queryResolver) Who(ctx context.Context) (model.Returns, error) {
-		// Retrieve VendorID from context using the Query().GetID method
-		VendorIDStr, err := r.Query().GetID(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get vendor ID: %v", err)
-		}
-	
-		// Convert VendorIDStr to UUID for querying
-		userUUID, err := uuid.Parse(*VendorIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid vendor ID format: %v", err)
-		}
-	
-		// Determine the user type (User, Vendor, or SideSwapper) using helper function
-		userType := helper.DetermineUserType(r.DB, userUUID)
-		if userType == "" {
-			return nil, fmt.Errorf("unable to determine user type for ID: %s", userUUID)
-		}
-	
-		// Depending on the user type, query the corresponding table
-		switch userType {
-		case "user":
-			var user model.User
-			if err := r.DB.Where("id = ?", userUUID).First(&user).Error; err != nil {
-				return nil, fmt.Errorf("user not found: %v", err)
-			}
-			return &user, nil
-	
-		case "vendor":
-			var vendor model.Vendor
-			if err := r.DB.Where("id = ?", userUUID).First(&vendor).Error; err != nil {
-				return nil, fmt.Errorf("vendor not found: %v", err)
-			}
-			return &vendor, nil
-	
-		case "sideSwapper":
-			var swapper model.SideSwapper
-			if err := r.DB.Where("id = ?", userUUID).First(&swapper).Error; err != nil {
-				return nil, fmt.Errorf("side swapper not found: %v", err)
-			}
-			return &swapper, nil
-	
-		default:
-			return nil, fmt.Errorf("unknown entity type: %s", userType)
-		}
+	// Return success
+	return true, nil
+}
+
+func (r *queryResolver) GetID(ctx context.Context) (*string, error) {
+	id, err := middleware.GetIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ID from context: %w", err)
+	}
+	return &id, nil
+}
+
+func (r *queryResolver) Who(ctx context.Context) (model.Returns, error) {
+	// Retrieve VendorID from context using the Query().GetID method
+	VendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
 	}
 
-	func (r *queryResolver) GetAllsysteminfor(ctx context.Context) (*model.Systeminfor, error) {
-		var dbName string
-		var Bdtable string
-		query := "SELECT current_user"
-		if err := r.DB.Raw(query).Row().Scan(&dbName); err != nil {
-			return nil, err
-		}
-		query = `\d`
-		if err := r.DB.Raw(query).Row().Scan(&Bdtable); err != nil {
-			return nil, err
-		}
-		systemInfo := &model.Systeminfor{
-			Bdtable: Bdtable,
-			Dbname:  dbName,
-		}
-
-		return systemInfo, nil
+	// Convert VendorIDStr to UUID for querying
+	userUUID, err := uuid.Parse(*VendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID format: %v", err)
 	}
 
-	func (r *Resolver) Mutation() graph1.MutationResolver { return &mutationResolver{r} }
+	// Determine the user type (User, Vendor, or SideSwapper) using helper function
+	userType := helper.DetermineUserType(r.DB, userUUID)
+	if userType == "" {
+		return nil, fmt.Errorf("unable to determine user type for ID: %s", userUUID)
+	}
 
-	func (r *Resolver) Query() graph1.QueryResolver { return &queryResolver{r} }
+	// Depending on the user type, query the corresponding table
+	switch userType {
+	case "user":
+		var user model.User
+		if err := r.DB.Where("id = ?", userUUID).First(&user).Error; err != nil {
+			return nil, fmt.Errorf("user not found: %v", err)
+		}
+		return &user, nil
 
-	type mutationResolver struct{ *Resolver }
-	type queryResolver struct{ *Resolver }
+	case "vendor":
+		var vendor model.Vendor
+		if err := r.DB.Where("id = ?", userUUID).First(&vendor).Error; err != nil {
+			return nil, fmt.Errorf("vendor not found: %v", err)
+		}
+		return &vendor, nil
+
+	case "sideSwapper":
+		var swapper model.SideSwapper
+		if err := r.DB.Where("id = ?", userUUID).First(&swapper).Error; err != nil {
+			return nil, fmt.Errorf("side swapper not found: %v", err)
+		}
+		return &swapper, nil
+
+	default:
+		return nil, fmt.Errorf("unknown entity type: %s", userType)
+	}
+}
+
+func (r *queryResolver) GetAllsysteminfor(ctx context.Context) (*model.Systeminfor, error) {
+	var dbName string
+	var Bdtable string
+	query := "SELECT current_user"
+	if err := r.DB.Raw(query).Row().Scan(&dbName); err != nil {
+		return nil, err
+	}
+	query = `\d`
+	if err := r.DB.Raw(query).Row().Scan(&Bdtable); err != nil {
+		return nil, err
+	}
+	systemInfo := &model.Systeminfor{
+		Bdtable: Bdtable,
+		Dbname:  dbName,
+	}
+
+	return systemInfo, nil
+}
+
+func (r *Resolver) Mutation() graph1.MutationResolver { return &mutationResolver{r} }
+
+func (r *Resolver) Query() graph1.QueryResolver { return &queryResolver{r} }
+
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }

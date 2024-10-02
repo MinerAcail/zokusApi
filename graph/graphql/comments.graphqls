@@ -1,0 +1,30 @@
+type Comment {
+  id: String!
+  userId: String!
+  productId: String!
+  content: String!
+  parentCommentId: String # ID of the parent comment (if it's a reply)
+  replies: [Comment!] # List of replies (child comments)
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CommentInput {
+  productId: String!
+  content: String!
+  parentCommentId: String # Optional field to specify if it's a reply to another comment
+}
+
+extend type Query {
+  getCommentsByProduct(productId: String!): [Comment!]!
+  getCommentById(id: String!): Comment
+  getAll:[Comment]
+
+}
+
+extend type Mutation {
+  addComment(input: CommentInput!,userId: String!): Comment!
+  
+  updateComment(id: String!, content: String!): Comment!
+  deleteComment(id: String!): Boolean
+}

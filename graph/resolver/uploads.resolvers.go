@@ -299,8 +299,8 @@ func (r *mutationResolver) AdvertisementUpload(ctx context.Context, bgFiles []*g
 		return nil, fmt.Errorf("error creating videos")
 	}
 
-																	// 	X 185.625
-																	// sidesheet.tsx:143 Y 382.79999999999995
+	// 	X 185.625
+	// sidesheet.tsx:143 Y 382.79999999999995
 
 	combinedVideo, err := redis.CombineVideosFromMemory(bgOutputBytes, overlayOutputBytes, "mp4", 54, 210)
 	if err != nil {

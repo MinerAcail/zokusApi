@@ -71,7 +71,7 @@ func (r *mutationResolver) AddFavoriteProduct(ctx context.Context, productID str
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
 	}
-	
+
 	userUUID, err := uuid.Parse(*VendorIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
@@ -195,7 +195,7 @@ func (r *queryResolver) GetAllProduct(ctx context.Context) ([]*model.Product, er
 	}
 
 	return products, nil
-}		
+}
 
 func (r *queryResolver) GetUserFavoriteProducts(ctx context.Context) ([]*model.Product, error) {
 	VendorIDStr, err := r.Query().GetID(ctx)

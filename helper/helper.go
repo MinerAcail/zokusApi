@@ -175,3 +175,26 @@ func ImageFromMinIOURL(ctx context.Context, minioClient *minio.Client, fileURL s
 	}
 	return imageData, nil
 }
+
+
+// deleteNestedComments deletes all replies for the given comments recursively
+func DeleteNestedComments(db *gorm.DB, comments []*model.Comment) error {
+	for _, reply := range comments {
+		// Fetch the reply to get its nested replies
+		var nestedReplies []*model.Comment
+		if err := db.Preload("Replies").Find(&nestedReplies, "parent_comment_id = ?", reply.ID).Error; err != nil {
+			return fmt.Errorf("failed to fetch nested replies: %w", err)
+		}
+
+		// Recursive call to delete nested replies
+		if err := DeleteNestedComments(db, nestedReplies); err != nil {
+			return err
+		}
+
+		// Delete the reply itself
+		if err := db.Delete(reply).Error; err != nil {
+			return fmt.Errorf("failed to delete reply: %w", err)
+		}
+	}
+	return nil
+}

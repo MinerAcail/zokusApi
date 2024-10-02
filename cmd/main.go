@@ -43,14 +43,13 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.SideSwapper{},
 		&model.SideSwapperProduct{},
 		&model.ProductInventoryMetaData{},
-		&model.Pricing{},
-
-
+		&model.Pricing{},		
 		&model.Product{},
+		&model.Comment{},
 		&model.UserOrder{},
 		&model.ProductRequest{},
 		&model.Cart{},
-		&model.CartItem	{},
+		&model.CartItem{},
 
 	// &model.{},
 	); err != nil {

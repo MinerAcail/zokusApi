@@ -14,6 +14,12 @@ type Returns interface {
 	IsReturns()
 }
 
+type CommentInput struct {
+	ProductID       string  `json:"productId"`
+	Content         string  `json:"content"`
+	ParentCommentID *string `json:"parentCommentId,omitempty"`
+}
+
 type FavoriteMateData struct {
 	FavoriteProducts     []*FavoriteProduct `json:"favoriteProducts"`
 	Count                int                `json:"count"`
