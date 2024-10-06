@@ -11,6 +11,8 @@ type CartItem {
 type Cart {
   id: String!
   userType: UserType!
+  userName: String! 
+  UserNumber: String! 
   userId: String!
   items: [CartItem!]!
   createdAt: Time!
@@ -19,6 +21,8 @@ type Cart {
 
 extend type Query {
   getUserCart: Cart!
+  getAllCart:[VendorOrder]!
+  allCart:[Cart]!
 }
 
 extend type Mutation {
@@ -30,3 +34,44 @@ extend type Mutation {
   updateCartItem(cartItemId: String!, quantity: Int!): CartItem!
   clearCart: Boolean!
 }
+
+
+
+
+### for the vms
+
+type VendorOrder {
+  id: String!
+  name: String!
+  email: String!
+  phone: String!
+  status: String!
+  orders: [Order!]!
+  lastOrderDate: String!
+  totalOrders: Int!
+}
+
+type Order {
+  id: ID!
+  customerId: ID!
+  customerName: String!
+  date: String!
+  deliveryAddress: String!
+  status: String!
+  items: [OrderItem!]!
+  paymentStatus: String!
+  paymentMethod: String!
+  shippingMethod: String!
+  trackingNumber: String
+  estimatedDeliveryDate: String!
+}
+
+type OrderItem {
+  id: ID!
+  name: String!
+  quantity: Int!
+  price: Float!
+}
+
+
+

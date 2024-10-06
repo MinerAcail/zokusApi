@@ -5,6 +5,7 @@ type Comment {
   content: String!
   parentCommentId: String # ID of the parent comment (if it's a reply)
   replies: [Comment!] # List of replies (child comments)
+  userName: String! 
   createdAt: Time!
   updatedAt: Time!
 }

@@ -5,7 +5,7 @@
         WORKDIR /usr/src/app
 
         # Install Air (a live-reloading tool for Go)
-        RUN go install github.com/air-verse/air@latest
+        RUN go install github.com/air-verse/air@v1.52.3
 
         # Install FFmpeg and curl
         RUN apk update && \

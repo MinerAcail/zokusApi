@@ -150,7 +150,7 @@ func (r *queryResolver) GetCommentsByProduct(ctx context.Context, productID stri
 	// Replace user IDs with names in comments
 	for i, comment := range comments {
 		if name, exists := userNames[comment.UserID]; exists {
-			comments[i].UserID = name // Replace UserID with the name
+			comments[i].UserName = name // Replace UserID with the name
 		}
 	}
 
@@ -190,27 +190,3 @@ func (r *queryResolver) GetAll(ctx context.Context) ([]*model.Comment, error) {
 func (r *Resolver) Comment() generated.CommentResolver { return &commentResolver{r} }
 
 type commentResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-func (r *mutationResolver) GetAll(ctx context.Context) ([]*model.Comment, error) {
-	// Create a slice to hold the comments
-	var comments []*model.Comment
-
-	// Fetch all comments from the database using GORM
-	if err := r.DB.Find(&comments).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch comments: %w", err) // Return an error if fetching fails
-	}
-
-	return comments, nil
-}
-func (r *commentResolver) UserID(ctx context.Context, obj *model.Comment) (string, error) {
-	return obj.ID.String(), nil
-}
-func (r *commentResolver) ProductID(ctx context.Context, obj *model.Comment) (string, error) {
-	return obj.ID.String(), nil
-}

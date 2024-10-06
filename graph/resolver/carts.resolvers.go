@@ -16,29 +16,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// cartResolver - Resolving fields for Cart
 func (r *cartResolver) ID(ctx context.Context, obj *model.Cart) (string, error) {
-	id := obj.ID.String()
-	return id, nil
+	// Return the Cart ID as a string
+	return obj.ID.String(), nil
 }
 
 func (r *cartResolver) UserID(ctx context.Context, obj *model.Cart) (string, error) {
-	id := obj.ID.String()
-	return id, nil
+	// Return the UserID as a string
+	return obj.UserID.String(), nil
 }
 
+// cartItemResolver - Resolving fields for CartItem
 func (r *cartItemResolver) ID(ctx context.Context, obj *model.CartItem) (string, error) {
-	id := obj.ID.String()
-	return id, nil
+	// Return the CartItem ID as a string
+	return obj.ID.String(), nil
 }
 
 func (r *cartItemResolver) ProductID(ctx context.Context, obj *model.CartItem) (string, error) {
-	id := obj.ID.String()
-	return id, nil
+	// Return the ProductID as a string
+	return obj.ProductID.String(), nil
 }
 
 func (r *cartItemResolver) CartID(ctx context.Context, obj *model.CartItem) (string, error) {
-	id := obj.ID.String()
-	return id, nil
+	// Return the CartID as a string
+	return obj.CartID.String(), nil
 }
 
 func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, quantity int) (*model.CartItem, error) {
@@ -259,6 +261,150 @@ func (r *queryResolver) GetUserCart(ctx context.Context) (*model.Cart, error) {
 	log.Printf("Cart %+v", cart)
 
 	return &cart, nil
+}
+
+func (r *queryResolver) GetAllCart(ctx context.Context) ([]*model.VendorOrder, error) {
+	// Define a slice to hold the carts
+	var carts []*model.Cart
+
+	// Query all carts from the database and preload the cart items and their associated products and vendors
+	if err := r.DB.Preload("Items.Product.Vendor").Find(&carts).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve carts: %w", err)
+	}
+
+	// Map to hold user names and numbers by their IDs
+	userNames := make(map[string]string)
+	userNumbers := make(map[string]string)
+	userID := make(map[string]string)
+
+	for _, cart := range carts {
+		// Check if the user is a regular user
+		var user model.User
+		if err := r.DB.Where("id = ?", cart.UserID).First(&user).Error; err == nil {
+			userID[cart.UserID.String()] = user.ID.String()
+			userNames[cart.UserID.String()] = user.Name
+			userNumbers[cart.UserID.String()] = user.Number
+			continue
+		}
+
+		// Check if the user is a vendor
+		var vendor model.Vendor
+		if err := r.DB.Where("id = ?", cart.UserID).First(&vendor).Error; err == nil {
+			userID[cart.UserID.String()] = vendor.ID.String()
+
+			userNames[cart.UserID.String()] = vendor.Name
+			userNumbers[cart.UserID.String()] = vendor.Number
+			continue
+		}
+
+		// Check if the user is a side swapper
+		var sideSwapper model.SideSwapper
+		if err := r.DB.Where("id = ?", cart.UserID).First(&sideSwapper).Error; err == nil {
+			userID[cart.UserID.String()] = sideSwapper.ID.String()
+			userNames[cart.UserID.String()] = sideSwapper.Name
+			userNumbers[cart.UserID.String()] = sideSwapper.Number
+			continue
+		}
+	}
+
+	// Map to gather VendorOrders by vendor ID
+	vendorOrderMap := make(map[string]*model.VendorOrder)
+
+	// Iterate over the carts and generate vendor orders
+	for _, cart := range carts {
+		for _, item := range cart.Items {
+			// Ensure that the product and vendor exist
+			if item.Product != nil && item.Product.Vendor != nil {
+				vendorID := item.Product.Vendor.ID.String()
+
+				// Check if the vendor is already in the map
+				if _, exists := vendorOrderMap[vendorID]; !exists {
+					// Create a new VendorOrder if not exists
+					vendorOrderMap[vendorID] = &model.VendorOrder{
+						ID:            vendorID,
+						Name:          item.Product.Vendor.Name,
+						Email:         "vendors@domain.com", // Example static email
+						Phone:         item.Product.Vendor.Number,
+						Status:        "active", // Example static status
+						Orders:        []*model.Order{},
+						LastOrderDate: cart.CreatedAt.Format("2006-01-02"),
+						TotalOrders:   0,
+					}
+				}
+
+				// Create an order for this cart
+				order := &model.Order{
+					ID:              cart.ID.String(),
+					CustomerName:    userNames[cart.UserID.String()],
+					CustomerID:      userID[cart.UserID.String()],
+					Date:            cart.CreatedAt.Format("2006-01-02"),
+					DeliveryAddress: "123 Example Street", // Example address
+					Status:          "pending",            // Example status
+					PaymentStatus:   "paid",               // Example payment status
+					PaymentMethod:   "Credit Card",        // Example payment method
+					ShippingMethod:  "Standard",           // Example shipping method
+					Items: []*model.OrderItem{
+						{
+							ID:       item.ID.String(),
+							Name:     *item.Product.Name,
+							Quantity: item.Quantity,
+						},
+					},
+					EstimatedDeliveryDate: cart.CreatedAt.AddDate(0, 0, 5).Format("2006-01-02"),
+				}
+
+				// Append the order to the vendor's orders
+				vendorOrderMap[vendorID].Orders = append(vendorOrderMap[vendorID].Orders, order)
+				vendorOrderMap[vendorID].TotalOrders++ // Increment total orders for the vendor
+			}
+		}
+	}
+
+	// Convert the vendor order map to a slice
+	var vendorOrders []*model.VendorOrder
+	for _, vendorOrder := range vendorOrderMap {
+		vendorOrders = append(vendorOrders, vendorOrder)
+	}
+
+	// Return the populated vendor orders
+	return vendorOrders, nil
+}
+
+func (r *queryResolver) AllCart(ctx context.Context) ([]*model.Cart, error) {
+	var carts []*model.Cart
+
+	// Query all carts from the database and preload the cart items and their associated products and vendors
+	if err := r.DB.Preload("Items.Product.Vendor.Product").Find(&carts).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve carts: %w", err)
+	}
+
+	for _, cart := range carts {
+		// Check if the user is a regular user
+		var user model.User
+		if err := r.DB.Where("id = ?", cart.UserID).First(&user).Error; err == nil {
+			cart.UserName = user.Name
+			cart.UserNumber = user.Number
+			continue
+		}
+
+		// Check if the user is a vendor
+		var vendor model.Vendor
+		if err := r.DB.Where("id = ?", cart.UserID).First(&vendor).Error; err == nil {
+			cart.UserName = vendor.Name
+			cart.UserNumber = vendor.Number
+			continue
+		}
+
+		// Check if the user is a side swapper
+		var sideSwapper model.SideSwapper
+		if err := r.DB.Where("id = ?", cart.UserID).First(&sideSwapper).Error; err == nil {
+			cart.UserName = sideSwapper.Name
+			cart.UserNumber = sideSwapper.Number
+			continue
+		}
+	}
+
+	return carts, nil
 }
 
 func (r *Resolver) Cart() generated.CartResolver { return &cartResolver{r} }

@@ -22,12 +22,12 @@ func (r *favoriteProductResolver) ID(ctx context.Context, obj *model.FavoritePro
 }
 
 func (r *favoriteProductResolver) UserID(ctx context.Context, obj *model.FavoriteProduct) (string, error) {
-	id := obj.ID.String()
+	id := obj.UserID.String()
 	return id, nil
 }
 
 func (r *favoriteProductResolver) ProductID(ctx context.Context, obj *model.FavoriteProduct) (string, error) {
-	id := obj.ID.String()
+	id := obj.ProductID.String()
 	return id, nil
 }
 
@@ -173,7 +173,7 @@ func (r *productRequestResolver) UserID(ctx context.Context, obj *model.ProductR
 }
 
 func (r *productRequestResolver) VendorID(ctx context.Context, obj *model.ProductRequest) (string, error) {
-	id := obj.UserID.String()
+	id := obj.VendorID.String()
 	return id, nil
 }
 
@@ -302,6 +302,10 @@ func (r *queryResolver) GetAllFavoriteProduct(ctx context.Context, vendorid stri
 		TotalPrice:           &totalPrice,
 		MostFavoritedProduct: mostFavoritedProduct,
 	}, nil
+}
+
+func (r *queryResolver) GetAllProductByID(ctx context.Context, vendorid string) ([]*model.Product, error) {
+	panic(fmt.Errorf("not implemented: GetAllProductByID - getAllProductById"))
 }
 
 func (r *Resolver) FavoriteProduct() generated.FavoriteProductResolver {

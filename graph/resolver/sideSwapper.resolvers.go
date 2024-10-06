@@ -217,7 +217,7 @@ func (r *productInventoryMetaDataResolver) ID(ctx context.Context, obj *model.Pr
 }
 
 func (r *productInventoryMetaDataResolver) SideSwapperID(ctx context.Context, obj *model.ProductInventoryMetaData) (string, error) {
-	id := obj.ID.String()
+	id := obj.SideSwapperID.String()
 	return id, nil
 }
 
@@ -339,7 +339,7 @@ func (r *sideSwapperResolver) InventoryMetaDataIds(ctx context.Context, obj *mod
 }
 
 func (r *sideSwapperResolver) PricingID(ctx context.Context, obj *model.SideSwapper) (string, error) {
-	id := obj.ID.String()
+	id := obj.PricingID.String()
 	return id, nil
 }
 
@@ -349,22 +349,22 @@ func (r *sideSwapperProductResolver) ID(ctx context.Context, obj *model.SideSwap
 }
 
 func (r *sideSwapperProductResolver) SideSwapperID(ctx context.Context, obj *model.SideSwapperProduct) (string, error) {
-	id := obj.ID.String()
+	id := obj.SideSwapperID.String()
 	return id, nil
 }
 
 func (r *sideSwapperProductResolver) VendorID(ctx context.Context, obj *model.SideSwapperProduct) (string, error) {
-	id := obj.ID.String()
+	id := obj.VendorID.String()
 	return id, nil
 }
 
 func (r *sideSwapperProductResolver) ProductID(ctx context.Context, obj *model.SideSwapperProduct) (string, error) {
-	id := obj.ID.String()
+	id := obj.ProductID.String()
 	return id, nil
 }
 
 func (r *sideSwapperProductResolver) PricingID(ctx context.Context, obj *model.SideSwapperProduct) (string, error) {
-	id := obj.ID.String()
+	id := obj.PricingID.String()
 	return id, nil
 }
 

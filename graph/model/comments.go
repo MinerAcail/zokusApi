@@ -11,6 +11,10 @@ type Comment struct {
 	Content         string      `json:"content"`
 	ParentCommentID *uuid.UUID  `gorm:"type:uuid" json:"parentCommentId,omitempty"`  // Use UUID for parent comment
 	Replies         []*Comment  `gorm:"foreignKey:ParentCommentID" json:"replies,omitempty"`  // Foreign key points to ParentCommentID
+	UserName        string     `gorm:"-" json:"userName"`
 	CreatedAt       time.Time   `json:"createdAt"`
 	UpdatedAt       time.Time   `json:"updatedAt"`
 }
+
+
+

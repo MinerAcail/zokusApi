@@ -65,6 +65,28 @@ type NewUser struct {
 	Pin    string `json:"pin"`
 }
 
+type Order struct {
+	ID                    string       `json:"id"`
+	CustomerID            string       `json:"customerId"`
+	CustomerName          string       `json:"customerName"`
+	Date                  string       `json:"date"`
+	DeliveryAddress       string       `json:"deliveryAddress"`
+	Status                string       `json:"status"`
+	Items                 []*OrderItem `json:"items"`
+	PaymentStatus         string       `json:"paymentStatus"`
+	PaymentMethod         string       `json:"paymentMethod"`
+	ShippingMethod        string       `json:"shippingMethod"`
+	TrackingNumber        *string      `json:"trackingNumber,omitempty"`
+	EstimatedDeliveryDate string       `json:"estimatedDeliveryDate"`
+}
+
+type OrderItem struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Quantity int     `json:"quantity"`
+	Price    float64 `json:"price"`
+}
+
 type ProductInput struct {
 	Name  string       `json:"name"`
 	Price string       `json:"price"`
@@ -103,6 +125,17 @@ type UserOrderInput struct {
 	ProductIds  []string `json:"productIds"`
 	Quantity    string   `json:"quantity"`
 	IsCompleted *bool    `json:"isCompleted,omitempty"`
+}
+
+type VendorOrder struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Email         string   `json:"email"`
+	Phone         string   `json:"phone"`
+	Status        string   `json:"status"`
+	Orders        []*Order `json:"orders"`
+	LastOrderDate string   `json:"lastOrderDate"`
+	TotalOrders   int      `json:"totalOrders"`
 }
 
 type Systeminfor struct {

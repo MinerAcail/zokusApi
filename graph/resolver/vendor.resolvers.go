@@ -19,7 +19,7 @@ import (
 )
 
 func (r *favoriteVendorResolver) ID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
-	id := obj.UserID.String()
+	id := obj.ID.String()
 	return id, nil
 }
 
@@ -29,7 +29,7 @@ func (r *favoriteVendorResolver) UserID(ctx context.Context, obj *model.Favorite
 }
 
 func (r *favoriteVendorResolver) VendorID(ctx context.Context, obj *model.FavoriteVendor) (string, error) {
-	id := obj.UserID.String()
+	id := obj.VendorID.String()
 	return id, nil
 }
 
