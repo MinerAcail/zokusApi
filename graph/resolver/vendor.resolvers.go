@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
@@ -408,6 +409,185 @@ func (r *queryResolver) GetAllFavoriteVendors(ctx context.Context) (*model.Favor
 		Count:               count,
 		MostFavoritedVendor: &mostFavoritedVendor,
 	}, nil
+}
+
+func (r *queryResolver) GetProductforVpm(ctx context.Context) (*model.ProductforVpm, error) {
+	// Step 1: Extract vendor ID from context
+	vendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	vendorID, err := uuid.Parse(*vendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %v", err)
+	}
+
+	// Step 2: Fetch all products associated with the vendor
+	var products []model.Product
+	err = r.DB.Where("vendor_id = ?", vendorID).Find(&products).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve products: %v", err)
+	}
+
+	// Step 3: Count the total number of SideSwappers related to this vendor via products
+	var sideSwapperCount int64
+	err = r.DB.Model(&model.SideSwapper{}).
+		Joins("JOIN side_swapper_products ON side_swappers.id = side_swapper_products.side_swapper_id").
+		Joins("JOIN products ON side_swapper_products.product_id = products.id").
+		Where("products.vendor_id = ?", vendorID).
+		Count(&sideSwapperCount).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to count SideSwappers: %v", err)
+	}
+
+	// Step 4: Fetch related carts using product IDs
+	var carts []model.Cart
+	productIDs := make([]uuid.UUID, len(products))
+	for i, product := range products {
+		productIDs[i] = product.ID
+	}
+
+	err = r.DB.Joins("JOIN cart_items ON carts.id = cart_items.cart_id").
+		Where("cart_items.product_id IN ?", productIDs).
+		Preload("Items.Product").
+		Find(&carts).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve carts: %v", err)
+	}
+
+	// Step 5: Calculate total revenue, profit, etc.
+	totalRevenue := 0.0
+	totalProfit := 0.0
+	totalProducts := 0
+	lowStockCount := "0"
+
+	for _, cart := range carts {
+		for _, item := range cart.Items {
+			if item.Product != nil && item.Product.Price != nil {
+				// Convert string price to float64
+				price, err := strconv.ParseFloat(*item.Product.Price, 64)
+				if err != nil {
+					return nil, fmt.Errorf("invalid product price for product ID %s: %v", item.Product.ID, err)
+				}
+
+				// Assuming product cost is available in item.Product.Cost
+				cost := 0.0 // Default cost, adjust as per actual Product model
+				if item.Product.Price != nil {
+					cost, err = strconv.ParseFloat(*item.Product.Price, 64)
+					if err != nil {
+						return nil, fmt.Errorf("invalid product cost for product ID %s: %v", item.Product.ID, err)
+					}
+				}
+
+				// Calculate revenue and profit
+				totalRevenue += price * float64(item.Quantity)
+				totalProfit += (price - cost) * float64(item.Quantity)
+				totalProducts += item.Quantity
+
+				// Assuming Product has a LowStockThreshold field
+				/*if item.Quantity <= item.Product.LowStockThreshold {
+					lowStockCount++
+				}*/
+			}
+		}
+	}
+
+	// Step 6: Prepare the ProductforVpm response
+	productForVpm := &model.ProductforVpm{
+		SideSwappers:          fmt.Sprintf("%d", sideSwapperCount), // Total SideSwappers
+		PersonalDeliveryItems: fmt.Sprintf("%d", len(carts)),       // Total carts (personal orders)
+		ZukoDeliveryItems:     "N/A",                               // Add logic for ZukoDeliveryItems if needed
+		TotalRevenue:          fmt.Sprintf("%.2f", totalRevenue),
+		TotalProfit:           fmt.Sprintf("%.2f", totalProfit),
+		TotalProducts:         fmt.Sprintf("%d", totalProducts),
+		LowStock:              &lowStockCount,
+	}
+
+	return productForVpm, nil
+}
+
+func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.CartUser, error) {
+	// Define a slice to hold the carts
+	var carts []*model.Cart
+
+	// Convert vendorId to UUID
+	vendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	vendorUUID, err := uuid.Parse(*vendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %v", err)
+	}
+
+	// Query all carts from the database that belong to the specified vendor
+	if err := r.DB.Preload("Items.Product.Vendor").Find(&carts).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve carts: %w", err)
+	}
+
+	// Map to hold user details (names, IDs, numbers) by their IDs
+	userNames := make(map[string]string)
+
+	for _, cart := range carts {
+		// Retrieve user info from the database based on cart's UserID
+		var user model.User
+		if err := r.DB.Where("id = ?", cart.UserID).First(&user).Error; err == nil {
+			userNames[cart.UserID.String()] = user.Name
+			continue
+		}
+
+		// Check if the user is a vendor or side swapper if it's not a regular user
+		var vendor model.Vendor
+		if err := r.DB.Where("id = ?", cart.UserID).First(&vendor).Error; err == nil {
+			userNames[cart.UserID.String()] = vendor.Name
+			continue
+		}
+		// Check if the user is a vendor or side swapper if it's not a regular user
+		var sideSwapper model.SideSwapper
+		if err := r.DB.Where("id = ?", cart.UserID).First(&sideSwapper).Error; err == nil {
+			userNames[cart.UserID.String()] = sideSwapper.Name
+			continue
+		}
+	}
+
+	// Slice to hold the CartUser data
+	var cartUsers []*model.CartUser
+
+	// Iterate over the carts and generate cart users
+	for _, cart := range carts {
+		for _, item := range cart.Items {
+			// Ensure that the product and vendor exist and that the vendor matches the given vendorId
+			if item.Product != nil && item.Product.Vendor != nil && item.Product.Vendor.ID == vendorUUID {
+				// Calculate total amount for this cart
+				var totalAmount float64
+				for _, item := range cart.Items {
+					if item.Product != nil && item.Product.Price != nil {
+						// Assuming Product.Price is a pointer to float64
+						price, err := strconv.ParseFloat(*item.Product.Price, 64)
+						if err != nil {
+							return nil, fmt.Errorf("invalid product price for product ID %s: %v", item.Product.ID, err)
+						}
+						totalAmount += float64(item.Quantity) * price
+					}
+				}
+
+				// Create a CartUser struct for this cart
+				cartUser := &model.CartUser{
+					OrderID:     cart.ID.String(),
+					Customer:    userNames[cart.UserID.String()],
+					Date:        cart.CreatedAt.Format("2006-01-02"),
+					Status:      "pending",                  // Example static status, update if needed
+					TotalAmount: fmt.Sprintf("%.2f", totalAmount), // Total calculated amount, formatted as string
+				}
+
+				// Append the CartUser to the slice
+				cartUsers = append(cartUsers, cartUser)
+			}
+		}
+	}
+
+	// Return the list of CartUsers
+	return cartUsers, nil
 }
 
 func (r *vendorResolver) ID(ctx context.Context, obj *model.Vendor) (string, error) {

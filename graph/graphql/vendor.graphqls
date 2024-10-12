@@ -42,8 +42,17 @@ extend type Query {
   getTotalCountOfFavoriteVendor(vendorId: String!): Int!
 
   getAllFavoriteVendors: FavoriteVendorMateData!
-}
 
+  getProductforVPM:ProductforVPM
+  getCartUsersByVendorId: [CartUser!]!
+}
+type CartUser {
+  orderId: String!
+  customer: String!
+  date: String!
+  status: String!
+  totalAmount: String!
+}
 extend type Mutation {
   VendorUpload(files: [Upload], input: ProductInput): Product!
   delectVendorById(id: String!): Boolean
@@ -51,7 +60,7 @@ extend type Mutation {
 
   addFavoriteVendor(vendorId: String!): FavoriteVendor!
   removeFavoriteVendor(id: String!): Boolean
-}
+} 
 
 input NewVendor {
   name: String!
@@ -62,4 +71,15 @@ input NewVendor {
 input UploadVendorMateData {
   profile: Upload
   background: Upload
+}
+
+
+type ProductforVPM {
+  sideSwappers: String!
+  personalDeliveryItems: String!
+  zukoDeliveryItems: String!
+  totalRevenue: String!
+  totalProfit: String!
+  totalProducts: String!
+  lowStock: String
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -14,6 +15,8 @@ import (
 	"github.com/mineracail/zokus/graph/generated"
 	"github.com/mineracail/zokus/graph/model"
 	graph "github.com/mineracail/zokus/graph/resolver"
+	"github.com/mineracail/zokus/payment"
+	"github.com/rpip/paystack-go"
 
 	"github.com/mineracail/zokus/helper"
 	"github.com/mineracail/zokus/middleware"
@@ -35,7 +38,7 @@ func PerformMigrations(db *gorm.DB) error {
 	}
 
 	// Run GORM AutoMigrate for your models
-	if err := db.AutoMigrate(													
+	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Vendor{},
 		&model.FavoriteVendor{},
@@ -43,7 +46,7 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.SideSwapper{},
 		&model.SideSwapperProduct{},
 		&model.ProductInventoryMetaData{},
-		&model.Pricing{},		
+		&model.Pricing{},
 		&model.Product{},
 		&model.Comment{},
 		&model.UserOrder{},
@@ -56,6 +59,14 @@ func PerformMigrations(db *gorm.DB) error {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
 	}
 	return nil
+}
+
+// InitPaystack initializes a new Paystack client with the given API key
+func InitPaystack(apiKey string) *paystack.Client {
+	customHttpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	return paystack.NewClient(apiKey, customHttpClient)			
 }
 func main() {
 	port := os.Getenv("Port")
@@ -75,6 +86,13 @@ func main() {
 	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
 	// minioBucket := "your-bucket-name" // Replace with your 	 name
 
+	// Read environment variables for Paystack
+	paystackAPIKey := os.Getenv("PAYSTACK_API_KEY")
+	// Initialize the Paystack API client
+	// Initialize the Paystack API client
+	// Initialize Paystack client
+	paystackClient := InitPaystack(paystackAPIKey)
+
 	// Configure database connection using database.Config
 	config := &database.Config{
 		Host:     dbHost,
@@ -84,7 +102,12 @@ func main() {
 		DBName:   dbName,
 		SSLMode:  "disable", // Adjust SSLMode as per your PostgreSQL setup
 	}
-
+	// Initialize the MoMo API client
+	momoAPI := payment.NewMoMoAPI(
+		os.Getenv("MOMO_API_KEY"),          // Replace with your MoMo API key
+		os.Getenv("MOMO_SUBSCRIPTION_KEY"), // Replace with your MoMo subscription key
+		os.Getenv("MOMO_ENVIRONMENT"),      // Either "sandbox" or "production"
+	)
 	// Establish database connection
 	db, err := database.NewConnection(config)
 	if err != nil {
@@ -105,6 +128,8 @@ func main() {
 	resolver := &graph.Resolver{
 		DB:          db,
 		MinIOClient: minioClient,
+		MoMoAPI:     momoAPI,
+		PaystackAPI: paystackClient,
 	}
 
 	// Initialize the GraphQL server

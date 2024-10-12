@@ -14,6 +14,14 @@ type Returns interface {
 	IsReturns()
 }
 
+type CartUser struct {
+	OrderID     string `json:"orderId"`
+	Customer    string `json:"customer"`
+	Date        string `json:"date"`
+	Status      string `json:"status"`
+	TotalAmount string `json:"totalAmount"`
+}
+
 type CommentInput struct {
 	ProductID       string  `json:"productId"`
 	Content         string  `json:"content"`
@@ -37,6 +45,10 @@ type ImageFiles struct {
 	Overlay string  `json:"overlay"`
 	Bg      string  `json:"bg"`
 	Combine *string `json:"combine,omitempty"`
+}
+
+type InitializeTransactionResponse struct {
+	AuthorizationURL string `json:"authorizationUrl"`
 }
 
 type ItemFiles struct {
@@ -95,6 +107,24 @@ type ProductInput struct {
 	Brand string       `json:"brand"`
 }
 
+type ProductUpdateInput struct {
+	Name  *string       `json:"name,omitempty"`
+	Price *string       `json:"price,omitempty"`
+	State *ProductState `json:"state,omitempty"`
+	Title *string       `json:"title,omitempty"`
+	Brand *string       `json:"brand,omitempty"`
+}
+
+type ProductforVpm struct {
+	SideSwappers          string  `json:"sideSwappers"`
+	PersonalDeliveryItems string  `json:"personalDeliveryItems"`
+	ZukoDeliveryItems     string  `json:"zukoDeliveryItems"`
+	TotalRevenue          string  `json:"totalRevenue"`
+	TotalProfit           string  `json:"totalProfit"`
+	TotalProducts         string  `json:"totalProducts"`
+	LowStock              *string `json:"lowStock,omitempty"`
+}
+
 type Query struct {
 }
 
@@ -108,6 +138,13 @@ type SideSwapperProductMetaData struct {
 	VendorName string     `json:"VendorName"`
 	Count      int        `json:"count"`
 	Products   []*Product `json:"products"`
+}
+
+type TransactionResponse struct {
+	AuthorizationURL string  `json:"authorizationURL"`
+	AccessCode       string  `json:"accessCode"`
+	Reference        string  `json:"reference"`
+	Amount           float64 `json:"amount"`
 }
 
 type UploadFile struct {

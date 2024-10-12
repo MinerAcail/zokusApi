@@ -20,6 +20,13 @@ input ProductInput {
   title: String!
   brand: String!
 }
+input ProductUpdateInput {
+  name: String
+  price: String
+  state: ProductState
+  title: String
+  brand: String
+}
 enum ProductState {
   ACTIVE
   INACTIVE
@@ -58,11 +65,13 @@ extend type Query {
   getFavoriteProduct(id: String!): FavoriteProduct
   getAllFavoriteProduct(Vendorid: String!): FavoriteMateData!
   getAllProductById(Vendorid: String!): [Product!]!
+  getProductById(productId: String!): Product!
 }
 
 extend type Mutation {
   delectProductById(id: String!): Boolean
   createPorduct(input: ProductInput!): Product!
+  updateProductById(productId: String!,input: ProductUpdateInput): Product!
   addFavoriteProduct(productId: String!): FavoriteProduct!
   removeFavoriteProduct(id: String!): Boolean
 }

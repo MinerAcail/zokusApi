@@ -1,0 +1,24 @@
+
+
+extend type Mutation {
+
+initiatePayment(amount: Float!, phoneNumber: String!, externalID: String!): String!
+PaystackTransaction(amount: Float!, reference: String!): InitializeTransactionResponse!
+paystack(amount: Float!, reference: String!): TransactionResponse!
+
+}
+
+
+type InitializeTransactionResponse {
+  authorizationUrl: String!
+}
+
+
+
+
+type TransactionResponse {
+   authorizationURL: String!
+    accessCode: String!
+    reference: String!
+    amount: Float!
+}

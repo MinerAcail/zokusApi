@@ -65,6 +65,40 @@ func (r *mutationResolver) CreatePorduct(ctx context.Context, input model.Produc
 	return nil, nil
 }
 
+func (r *mutationResolver) UpdateProductByID(ctx context.Context, productID string, input *model.ProductUpdateInput) (*model.Product, error) {
+	var product model.Product
+
+	// Find the existing product by ID
+	if err := r.DB.First(&product, "id = ?", productID).Error; err != nil {
+
+		return nil, err // return an error if the query fails
+	}
+
+	// Update the product fields with the input
+	if input.Name != nil {
+		product.Name = input.Name
+	}
+	if input.Price != nil {
+		product.Price = input.Price
+	}
+	if input.State != nil {
+		product.State = (*string)(input.State)
+	}
+	if input.Title != nil {
+		product.Title = input.Title
+	}
+	if input.Brand != nil {
+		product.Brand = input.Brand
+	}
+
+	// Save the updated product
+	if err := r.DB.Save(&product).Error; err != nil {
+		return nil, err // return an error if saving fails
+	}
+
+	return &product, nil
+}
+
 func (r *mutationResolver) AddFavoriteProduct(ctx context.Context, productID string) (*model.FavoriteProduct, error) {
 	// Retrieve the vendor (user) ID from the context
 	VendorIDStr, err := r.Query().GetID(ctx)
@@ -305,7 +339,27 @@ func (r *queryResolver) GetAllFavoriteProduct(ctx context.Context, vendorid stri
 }
 
 func (r *queryResolver) GetAllProductByID(ctx context.Context, vendorid string) ([]*model.Product, error) {
-	panic(fmt.Errorf("not implemented: GetAllProductByID - getAllProductById"))
+	var product []*model.Product
+	if vendorid == "" {
+		return nil, fmt.Errorf("invalid vendor ID")
+	}
+	if err := r.DB.Where("vendor_id = ?", vendorid).Find(&product).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch products ")
+	}
+
+	return product, nil
+}
+
+func (r *queryResolver) GetProductByID(ctx context.Context, productID string) (*model.Product, error) {
+	var product model.Product
+
+	// Query to find the product by vendor ID
+	if err := r.DB.Where("id = ?", productID).First(&product).Error; err != nil {
+
+		return nil, fmt.Errorf("product not found") // return an error if the query fails
+	}
+
+	return &product, nil
 }
 
 func (r *Resolver) FavoriteProduct() generated.FavoriteProductResolver {
