@@ -2,11 +2,14 @@ package helper
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
@@ -176,7 +179,6 @@ func ImageFromMinIOURL(ctx context.Context, minioClient *minio.Client, fileURL s
 	return imageData, nil
 }
 
-
 // deleteNestedComments deletes all replies for the given comments recursively
 func DeleteNestedComments(db *gorm.DB, comments []*model.Comment) error {
 	for _, reply := range comments {
@@ -197,4 +199,96 @@ func DeleteNestedComments(db *gorm.DB, comments []*model.Comment) error {
 		}
 	}
 	return nil
+}
+
+func GenerateOrderCartID(cartID string) (string, error) {
+	// Create a new random generator seeded with the current time
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Generate three random lowercase letters
+	randomLetters := fmt.Sprintf("%c%c%c", 'a'+r.Intn(26), 'a'+r.Intn(26), 'a'+r.Intn(26))
+	prefix := cartID[:3]
+	if len(cartID) < 3 {
+		return "", errors.New("cartID must be at least 3 characters long")
+	}
+
+	// Return the formatted string
+	return fmt.Sprintf("%s%s", prefix, randomLetters), nil
+}
+
+func CreateMetaData(db *gorm.DB, cartItemID uuid.UUID, cartID uuid.UUID) error {
+	// Check if the purchase meta data already exists
+	var existingPurchaseMetaData model.PurchaseMetaData
+	if err := db.Where("cart_item_id = ? AND cart_id = ?", cartItemID, cartID).First(&existingPurchaseMetaData).Error; err != nil {
+		if gorm.ErrRecordNotFound == err {
+			// Record doesn't exist, create a new one
+			purchaseMetaData := &model.PurchaseMetaData{
+				CartItemID: cartItemID,
+				Status:     string(model.StatusInCart),
+				CartID:     cartID,
+			}
+			if err := db.Create(&purchaseMetaData).Error; err != nil {
+				return fmt.Errorf("failed to create purchase meta data: %w", err)
+			}
+		} else {
+			// Some other error occurred
+			return fmt.Errorf("failed to query purchase meta data: %w", err)
+		}
+	} else {
+		// Record exists, update it
+		existingPurchaseMetaData.Status = string(model.StatusInCart)
+		if err := db.Save(&existingPurchaseMetaData).Error; err != nil {
+			return fmt.Errorf("failed to update purchase meta data: %w", err)
+		}
+	}
+
+	// Check if the delivery status already exists
+	// var existingDeliveryStatus model.DeliveryStatus
+	// if err := db.Where("cart_item_id = ?", cartItemID).First(&existingDeliveryStatus).Error; err != nil {
+	// 	if gorm.ErrRecordNotFound == err {
+	// 		// Record doesn't exist, create a new one
+	// 		deliveryStatus := &model.DeliveryStatus{
+	// 			CartItemID: cartItemID,
+	// 			Status:     string(model.StatusOrder),
+	// 		}
+	// 		if err := db.Create(&deliveryStatus).Error; err != nil {
+	// 			return fmt.Errorf("failed to create delivery status: %w", err)
+	// 		}
+	// 	} else {
+	// 		// Some other error occurred
+	// 		return fmt.Errorf("failed to query delivery status: %w", err)
+	// 	}
+	// } else {
+	// 	// Record exists, update it
+	// 	existingDeliveryStatus.Status = string(model.StatusOrder)
+	// 	if err := db.Save(&existingDeliveryStatus).Error; err != nil {
+	// 		return fmt.Errorf("failed to update delivery status: %w", err)
+	// 	}
+	// }
+
+	return nil
+}
+
+
+func GetUserDetails(db *gorm.DB, userUUID uuid.UUID) (userID, userNames, userNumbers string, err error) {
+	// Check if the user is a regular user
+	var user model.User
+	if err := db.Where("id = ?", userUUID).First(&user).Error; err == nil {
+		return user.ID.String(), user.Name, user.Number, nil
+	}
+
+	// Check if the user is a vendor
+	var vendor model.Vendor
+	if err := db.Where("id = ?", userUUID).First(&vendor).Error; err == nil {
+		return vendor.ID.String(), vendor.Name, vendor.Number, nil
+	}
+
+	// Check if the user is a side swapper
+	var sideSwapper model.SideSwapper
+	if err := db.Where("id = ?", userUUID).First(&sideSwapper).Error; err == nil {
+		return sideSwapper.ID.String(), sideSwapper.Name, sideSwapper.Number, nil
+	}
+
+	// If no user is found in any of the tables
+	return "", "", "", fmt.Errorf("user not found")
 }

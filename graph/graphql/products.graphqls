@@ -5,6 +5,8 @@ type Product {
   state: String
   title: String
   brand: String
+  cost: String
+  stock: String
   imageUrls: [String]
   vendorsBucketName: String
   Vendor: Vendor
@@ -26,6 +28,8 @@ input ProductUpdateInput {
   state: ProductState
   title: String
   brand: String
+    cost: String
+  stock: String
 }
 enum ProductState {
   ACTIVE
@@ -71,7 +75,7 @@ extend type Query {
 extend type Mutation {
   delectProductById(id: String!): Boolean
   createPorduct(input: ProductInput!): Product!
-  updateProductById(productId: String!,input: ProductUpdateInput): Product!
+  updateProductById(productId: String!, input: ProductUpdateInput): Product!
   addFavoriteProduct(productId: String!): FavoriteProduct!
   removeFavoriteProduct(id: String!): Boolean
 }

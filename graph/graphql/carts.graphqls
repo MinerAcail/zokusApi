@@ -4,6 +4,49 @@ type CartItem {
   productId: String!
   cartId: String!
   quantity: Int!
+  purchaseMetaData: PurchaseMetaData!
+  orderId: String!
+  orderCartItemId: String!
+  deliveryStatus: DeliveryStatus!
+  deliveryMetaData: DeliveryMetaData!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type CartItemGroup {
+  id: String!
+  groupLabel: String!
+  items: [Group!]!
+
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type Group {
+  id: String!
+  cartItem: CartItem!
+  cartItemId: String!
+  quantityGroup: Int!
+  cartItemGroup: CartItemGroup! 
+  cartItemGroupID: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type PurchaseMetaData {
+  id: String!
+  status: String!
+  cartItemId: String!
+  cartId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type DeliveryStatus {
+  id: String!
+  status: String!
+  cartItemId: String!
+  description: String!
   createdAt: Time!
   updatedAt: Time!
 }
@@ -11,32 +54,72 @@ type CartItem {
 type Cart {
   id: String!
   userType: UserType!
-  userName: String! 
-  UserNumber: String! 
+  userName: String!
+  UserNumber: String!
   userId: String!
+  purchaseMetaData: [PurchaseMetaData!]!
   items: [CartItem!]!
+  location: [DeliveryMetaData]!
+
   createdAt: Time!
   updatedAt: Time!
 }
 
+type DeliveryMetaData {
+  id: String!
+  locationName: String!
+  momoNumber: String!
+  cartItemId: String!
+  orderId: String!
+  latitude: String!
+  longitude: String!
+  cartId: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+type Category {
+  groupLabel: String!
+  groupLabelId: String!
+  quantityForAGroupLabel: Int!
+}
 extend type Query {
   getUserCart: Cart!
-  getAllCart:[VendorOrder]!
-  allCart:[Cart]!
+  getUserCartMetaData: [PurchaseMetaData!]!
+  getUserCartWithMetaData: [CartItem!]!
+  purchaseHistory: [PurchaseHistory!]!
+  getAllCart: [VendorOrder]!
+  allCart: [Cart]!
+  getOrder(orderId: String!): Order!
+  getAllCategoriesLabelsByUser: [Category!]!
+  getgroupLabel(label:String!):CartItemGroup!
+  getAllgroupLabel: [CartItemGroup!]!
 }
-
+input groupInput {
+  groupLabel: String!
+  cartItemId: String!
+  quantityGroup: Int!
+}
 extend type Mutation {
   addItemToCart(productId: String!, quantity: Int!): CartItem!
-  decrementItemToCart(productId: String!): CartItem!
+  addCategory(
+    groupLabel: String!
+    quantityForAGroupLabel: Int!
+    cartItemId: String!
+  ): CartItemGroup!
+  addGroupLabel(
+    input:groupInput! 
+  ): CartItemGroup!
 
-  
+   createOrder(input: CreateOrderInput!): Order!
+  decrementItemToCart(productId: String!): CartItem!
+  addDeliveryMetaData(
+    locationName: String!
+    momoNumber: String!
+  ): DeliveryMetaData!
   removeItemFromCart(cartItemId: String!): Boolean!
   updateCartItem(cartItemId: String!, quantity: Int!): CartItem!
   clearCart: Boolean!
 }
-
-
-
 
 ### for the vms
 
@@ -51,14 +134,22 @@ type VendorOrder {
   totalOrders: Int!
 }
 
+
+
+input CreateOrderInput {
+  deliveryAddress: String!
+  cartItemId: [String!]!
+}
+
+
 type Order {
-  id: ID!
-  customerId: ID!
+  id: String!
+  customerId: String!
   customerName: String!
   date: String!
   deliveryAddress: String!
   status: String!
-  items: [OrderItem!]!
+  items: [CartItem!]!
   paymentStatus: String!
   paymentMethod: String!
   shippingMethod: String!
@@ -66,12 +157,29 @@ type Order {
   estimatedDeliveryDate: String!
 }
 
+
+
+
 type OrderItem {
-  id: ID!
+  id: String!
   name: String!
   quantity: Int!
   price: Float!
 }
 
+type PurchaseHistoryItem {
+  id: String!
+  name: String!
+  price: String!
+  quantity: String!
+  imageUrl: String!
+}
 
-
+# PurchaseHistory represents the complete purchaseHistory with a list of items
+type PurchaseHistory {
+  id: String!
+  date: String!
+  items: [PurchaseHistoryItem!]!
+  status: String!
+  trackingNumber: String
+}

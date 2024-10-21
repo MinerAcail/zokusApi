@@ -7,7 +7,9 @@ package graph
 import (
 	"context"
 	"fmt"
-	"log"
+	"math/rand"
+	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/mineracail/zokus/graph/generated"
@@ -41,6 +43,46 @@ func (r *cartItemResolver) ProductID(ctx context.Context, obj *model.CartItem) (
 func (r *cartItemResolver) CartID(ctx context.Context, obj *model.CartItem) (string, error) {
 	// Return the CartID as a string
 	return obj.CartID.String(), nil
+}
+
+func (r *cartItemResolver) OrderCartItemID(ctx context.Context, obj *model.CartItem) (string, error) {
+	panic(fmt.Errorf("not implemented: OrderCartItemID - orderCartItemId"))
+}
+
+func (r *cartItemGroupResolver) ID(ctx context.Context, obj *model.CartItemGroup) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *deliveryMetaDataResolver) ID(ctx context.Context, obj *model.DeliveryMetaData) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *deliveryMetaDataResolver) CartItemID(ctx context.Context, obj *model.DeliveryMetaData) (string, error) {
+	return obj.CartItemID.String(), nil
+}
+
+func (r *deliveryMetaDataResolver) CartID(ctx context.Context, obj *model.DeliveryMetaData) (string, error) {
+	return obj.CartID.String(), nil
+}
+
+func (r *deliveryStatusResolver) ID(ctx context.Context, obj *model.DeliveryStatus) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *deliveryStatusResolver) CartItemID(ctx context.Context, obj *model.DeliveryStatus) (string, error) {
+	return obj.CartItemID.String(), nil
+}
+
+func (r *groupResolver) ID(ctx context.Context, obj *model.Group) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *groupResolver) CartItemID(ctx context.Context, obj *model.Group) (string, error) {
+	return obj.CartItemID.String(), nil
+}
+
+func (r *groupResolver) CartItemGroupID(ctx context.Context, obj *model.Group) (string, error) {
+	return obj.CartItemGroupID.String(), nil
 }
 
 func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, quantity int) (*model.CartItem, error) {
@@ -79,6 +121,7 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 			if err := r.DB.Create(&cart).Error; err != nil {
 				return nil, err
 			}
+
 		} else {
 			// Some other error occurred
 			return nil, err
@@ -95,11 +138,38 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 	// Check if the item is already in the cart
 	var cartItem model.CartItem
 	if err := r.DB.Where("cart_id = ? AND product_id = ?", cart.ID, product.ID).Preload("Product").First(&cartItem).Error; err == nil {
+		//check if the cartItem is oldeer then 24 hours
+		if cartItem.CreatedAt.Before(time.Now().Add(-24 * time.Hour)) {
+			// if older then 24 hours, create a new cartItem
+			newCartItem := model.CartItem{
+				CartID:    cart.ID, // Link the CartItem to the Cart
+				ProductID: productUUID,
+				Product:   &product, // Ensure product is linked here
+				Quantity:  quantity,
+			}
+			if err := r.DB.Create(&newCartItem).Error; err != nil {
+				return nil, fmt.Errorf("failed to create new cart item: %w", err)
+			}
+			if err := helper.CreateMetaData(r.DB, newCartItem.ID, cart.ID); err != nil {
+				return nil, fmt.Errorf("failed to create meta data: %w", err)
+			}
+
+			return &newCartItem, nil
+
+		}
+
+		// If less than 24 hours, update the existing cart item
 		// Update the quantity if the item is already in the cart
+		if err := helper.CreateMetaData(r.DB, cartItem.ID, cart.ID); err != nil {
+			return nil, fmt.Errorf("failed to create meta data: %w", err)
+		}
 		cartItem.Quantity += quantity
 		if err := r.DB.Save(&cartItem).Error; err != nil {
 			return nil, err
 		}
+
+		return &cartItem, nil
+
 	} else {
 		// Create a new cart item
 		cartItem = model.CartItem{
@@ -112,10 +182,188 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 		if err := r.DB.Create(&cartItem).Error; err != nil {
 			return nil, err
 		}
-		log.Printf("Fetched cart.ID: %v	", cartItem.Quantity)
+
+		if err := helper.CreateMetaData(r.DB, cartItem.ID, cart.ID); err != nil {
+			return nil, fmt.Errorf("failed to create meta data: %w", err)
+		}
+
 	}
 
 	return &cartItem, nil
+}
+
+func (r *mutationResolver) AddCategory(ctx context.Context, groupLabel string, quantityForAGroupLabel int, cartItemID string) (*model.CartItemGroup, error) {
+	// Parse the CartItemID as UUID
+	// cartItemUUID, err := uuid.Parse(cartItemID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("invalid CartItemID: %w", err)
+	// }
+
+	// // Check if the CartItem exists
+	// var cartItem model.CartItem
+	// if err := r.DB.Where("id = ?", cartItemUUID).First(&cartItem).Error; err != nil {
+	// 	return nil, fmt.Errorf("cart item not found: %w", err)
+	// }
+
+	// var checkLabelGroup model.CartItemGroup //check if the group label already exists
+	// if err := r.DB.Where("group_label = ?", groupLabel).First(&checkLabelGroup).Error; err == nil {
+	// 	return nil, fmt.Errorf("group label already exists: %w", err)
+	// }
+	// // Check if the group label already exists for the CartItem
+	// var existingGroup model.CartItemGroup
+	// if err := r.DB.Where("cart_item_id = ? AND group_label = ?", cartItemID, groupLabel).First(&existingGroup).Error; err == nil {
+	// 	// Group label already exists, so update the quantity
+	// 	existingGroup.QuantityForAGroupLabel += quantityForAGroupLabel
+	// 	if err := r.DB.Save(&existingGroup).Error; err != nil {
+	// 		return nil, fmt.Errorf("failed to update group label: %w", err)
+	// 	}
+	// 	return &existingGroup, nil
+	// } else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	// 	return nil, fmt.Errorf("failed to query for existing group label: %w", err)
+	// }
+
+	// // Create a new CartItemGroup
+	// newGroup := model.CartItemGroup{
+	// 	ID:                     checkLabelGroup.ID,
+	// 	GroupLabel:             groupLabel,
+	// 	QuantityForAGroupLabel: quantityForAGroupLabel,
+	// 	CartItemID:             cartItemUUID, // Use the string ID directly
+	// }
+
+	// // Save the new CartItemGroup
+	// if err := r.DB.Create(&newGroup).Error; err != nil {
+	// 	return nil, fmt.Errorf("failed to create new group label: %w", err)
+	// }
+
+	return nil, nil
+}
+
+func (r *mutationResolver) AddGroupLabel(ctx context.Context, input model.GroupInput) (*model.CartItemGroup, error) {
+	// Parse the CartItemID as UUID
+	cartItemUUID, err := uuid.Parse(input.CartItemID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CartItemID: %w", err)
+	}
+
+	// Check if the CartItem exists
+	var cartItem model.CartItem
+	if err := r.DB.Where("id = ?", cartItemUUID).First(&cartItem).Error; err != nil {
+		return nil, fmt.Errorf("cart item not found: %w", err)
+	}
+
+	// Check if the CartItemGroup exists based on the GroupLabel
+	var cartItemGroup model.CartItemGroup
+	if err := r.DB.Where("group_label = ?", input.GroupLabel).First(&cartItemGroup).Error; err != nil {
+		// Group does not exist, create a new CartItemGroup
+		cartItemGroup = model.CartItemGroup{
+			GroupLabel: input.GroupLabel,
+		}
+		if err := r.DB.Create(&cartItemGroup).Error; err != nil {
+			return nil, fmt.Errorf("failed to create new cart item group: %w", err)
+		}
+	}
+
+	// Check if the Group already exists for this CartItemID and CartItemGroupID
+	var existingGroup model.Group
+	if err := r.DB.Where("cart_item_group_id = ? AND cart_item_id = ?", cartItemGroup.ID, cartItem.ID).First(&existingGroup).Error; err == nil {
+		// If group exists, increment the QuantityGroup
+		existingGroup.QuantityGroup += input.QuantityGroup
+
+		// Save the updated group
+		if err := r.DB.Save(&existingGroup).Error; err != nil {
+			return nil, fmt.Errorf("failed to update existing group: %w", err)
+		}
+	} else {
+		// If group doesn't exist, create a new one
+		newGroup := model.Group{
+			CartItemID:      cartItem.ID,
+			CartItemGroupID: cartItemGroup.ID,
+			QuantityGroup:   input.QuantityGroup,
+		}
+
+		// Save the new group in the database
+		if err := r.DB.Create(&newGroup).Error; err != nil {
+			return nil, fmt.Errorf("failed to create new group: %w", err)
+		}
+	}
+
+	// Load the updated CartItemGroup including its items
+	if err := r.DB.Preload("Items").Where("id = ?", cartItemGroup.ID).First(&cartItemGroup).Error; err != nil {
+		return nil, fmt.Errorf("failed to load updated cart item group: %w", err)
+	}
+
+	return &cartItemGroup, nil
+}
+
+func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse user ID into UUID format
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch user details
+	_, userNames, _, err := helper.GetUserDetails(r.DB, userUUID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user details: %w", err)
+	}
+
+	// Create an empty slice to hold cart items
+	var linkedCartItems []*model.CartItem
+
+	for _, cartItemID := range input.CartItemID {
+		// Fetch the recent cart item by CartItemID
+		var cartItem model.CartItem
+		if err := r.DB.Where("id = ?", cartItemID).First(&cartItem).Error; err != nil {
+			return nil, fmt.Errorf("failed to find cart item with ID %s: %w", cartItemID, err)
+		}
+
+		// Link the cart item to the slice
+		linkedCartItems = append(linkedCartItems, &cartItem)
+	}
+
+	// Create the order using user information
+	order := &model.Order{
+		CustomerName:          userNames,
+		CustomerID:            userUUID,
+		Date:                  time.Now().Format("2006-01-02"), // Order creation date
+		DeliveryAddress:       input.DeliveryAddress,
+		Status:                string(model.StatusOrder),
+		PaymentStatus:         string(model.StatusPurchased),
+		PaymentMethod:         string(model.PaymentMethodMomo),
+		ShippingMethod:        string(model.ShippingMethodDelivery),
+		EstimatedDeliveryDate: time.Now().AddDate(0, 0, 2).Format("2006-01-02"), // 2 days from now
+		Items:                 linkedCartItems,                                  // Link all cart items here
+	}
+
+	// Save the new order in the database
+	if err := r.DB.Create(&order).Error; err != nil {
+		return nil, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	// Generate a unique order cart ID
+	orderID, err := helper.GenerateOrderCartID(order.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
+	}
+
+	// Update each cart item with the newly created order ID
+	for _, cartItem := range linkedCartItems {
+		cartItem.OrderID = orderID
+		cartItem.OrderCartItemId = order.ID
+
+		// Save the updated cart item	
+		if err := r.DB.Save(cartItem).Error; err != nil {
+			return nil, fmt.Errorf("failed to update cart item with ID %s: %w", cartItem.ID, err)
+		}
+	}
+	return order, nil
 }
 
 func (r *mutationResolver) DecrementItemToCart(ctx context.Context, productID string) (*model.CartItem, error) {
@@ -155,22 +403,79 @@ func (r *mutationResolver) DecrementItemToCart(ctx context.Context, productID st
 		return nil, fmt.Errorf("item not found in cart: %w", err)
 	}
 
-	// Decrement the quantity or remove the item if the quantity reaches 1 or less
-	if cartItem.Quantity < 1 {
-		// Remove the item from the cart
-		if err := r.DB.Delete(&cartItem).Error; err != nil {
-			return nil, fmt.Errorf("failed to remove cart item: %w", err)
-		}
-		return nil, nil // Return nil because the item is removed
-	}
-
 	// Decrement the quantity
 	cartItem.Quantity--
+
+	// Decrement the quantity or remove the item if the quantity reaches 1 or less
+	if cartItem.Quantity <= 0 { // check id the quantity is less then 1 the item should be removed is if the quantity is 0 then the item should be removed
+		// Remove the item from the cart
+
+		//update the purchase meta data status to cancelled
+		if err := r.DB.Model(&model.PurchaseMetaData{}).Where("cart_id = ?", cart.ID).Update("status", string(model.StatusCancelled)).Error; err != nil {
+			return nil, fmt.Errorf("failed to update purchase meta data status: %w", err)
+		}
+
+		if err := r.DB.Where("cart_item_id = ?", cartItem.ID).Delete(&model.DeliveryStatus{}).Error; err != nil {
+			return nil, fmt.Errorf("failed to remove delivery status: %w", err)
+		}
+		// if err := r.DB.Delete(&cartItem).Error; err != nil {
+		// 	return nil, fmt.Errorf("failed to remove cart item: %w", err)
+		// }
+		if err := r.DB.Save(&cartItem).Error; err != nil {
+			return nil, fmt.Errorf("failed to update cart item: %w", err)
+		}
+		return &cartItem, nil // Return nil because the item is removed
+	}
 	if err := r.DB.Save(&cartItem).Error; err != nil {
 		return nil, fmt.Errorf("failed to update cart item: %w", err)
 	}
-
 	return &cartItem, nil
+}
+
+func (r *mutationResolver) AddDeliveryMetaData(ctx context.Context, locationName string, momoNumber string) (*model.DeliveryMetaData, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("failed to find cart: %w", err)
+	}
+
+	// Fetch the cart item created within the last 24 hours
+	var cartItem model.CartItem
+	if err := r.DB.Where("cart_id = ? AND created_at >= ?", cart.ID, time.Now().Add(-24*time.Hour)).First(&cartItem).Error; err != nil {
+		return nil, fmt.Errorf("failed to find recent cart item: %w", err)
+	}
+	orderID, err := helper.GenerateOrderCartID(cart.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
+	}
+	// Create delivery metadata for the current cart item
+	deliveryMetaData := model.DeliveryMetaData{
+		CartID:       cart.ID,
+		CartItemID:   cartItem.ID,
+		LocationName: locationName,
+		MomoNumber:   momoNumber,
+		OrderID:      orderID,
+	}
+
+	// Save the delivery metadata to the database
+	if err := r.DB.Create(&deliveryMetaData).Error; err != nil {
+		return nil, fmt.Errorf("failed to create delivery metadata: %w", err)
+	}
+
+	// Return the created delivery metadata
+	return &deliveryMetaData, nil
 }
 
 func (r *mutationResolver) RemoveItemFromCart(ctx context.Context, cartItemID string) (bool, error) {
@@ -239,7 +544,105 @@ func (r *mutationResolver) ClearCart(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+func (r *orderResolver) ID(ctx context.Context, obj *model.Order) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *orderResolver) CustomerID(ctx context.Context, obj *model.Order) (string, error) {
+	return obj.CustomerID.String(), nil
+}
+
+func (r *orderItemResolver) ID(ctx context.Context, obj *model.OrderItem) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *purchaseMetaDataResolver) ID(ctx context.Context, obj *model.PurchaseMetaData) (string, error) {
+	return obj.ID.String(), nil
+}
+
+func (r *purchaseMetaDataResolver) CartItemID(ctx context.Context, obj *model.PurchaseMetaData) (string, error) {
+	return obj.CartItemID.String(), nil
+}
+
+func (r *purchaseMetaDataResolver) CartID(ctx context.Context, obj *model.PurchaseMetaData) (string, error) {
+	return obj.CartID.String(), nil
+}
+
 func (r *queryResolver) GetUserCart(ctx context.Context) (*model.Cart, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	//.Preload("PurchaseMetaData").Preload("DeliveryMetaData")
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).Preload("Items.Product").Preload("PurchaseMetaData").Preload("Location").First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("cart not found: %w", err)
+	}
+
+	return &cart, nil
+}
+
+func (r *queryResolver) GetUserCartMetaData(ctx context.Context) ([]*model.PurchaseMetaData, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	//.Preload("PurchaseMetaData").Preload("DeliveryMetaData")
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).Preload("Items.Product").First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("cart not found: %w", err)
+	}
+
+	var purchaseMetaData []*model.PurchaseMetaData
+	if err := r.DB.Where("cart_id = ?", cart.ID).Find(&purchaseMetaData).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve purchase meta data: %w", err)
+	}
+
+	return purchaseMetaData, nil
+}
+
+func (r *queryResolver) GetUserCartWithMetaData(ctx context.Context) ([]*model.CartItem, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	// .Preload("PurchaseMetaData").Preload("DeliveryMetaData")
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).Preload("Items.Product").First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("cart not found: %w", err)
+	}
+
+	return cart.Items, nil
+}
+
+func (r *queryResolver) PurchaseHistory(ctx context.Context) ([]*model.PurchaseHistory, error) {
 	// Get the user ID from the context
 	userIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
@@ -257,20 +660,61 @@ func (r *queryResolver) GetUserCart(ctx context.Context) (*model.Cart, error) {
 	if err := r.DB.Where("user_id = ?", userUUID).Preload("Items.Product").First(&cart).Error; err != nil {
 		return nil, fmt.Errorf("cart not found: %w", err)
 	}
+	// Initialize the purchase history slice
+	var purchaseHistories []*model.PurchaseHistory
 
-	log.Printf("Cart %+v", cart)
+	// Process each item in the cart to create a PurchaseHistory
+	for _, item := range cart.Items {
+		// Prepare the PurchaseHistoryItem
+		historyItem := &model.PurchaseHistoryItem{
+			ID:       item.ID.String(),
+			Name:     *item.Product.Name,
+			Price:    *item.Product.Price,
+			Quantity: fmt.Sprintf("%d", item.Quantity),
+			ImageURL: item.Product.ImageUrls[0], // Assuming the first image is used
+		}
+		trackingNumber := fmt.Sprintf("%d", rand.Intn(1000000)) //random number as a string from 0 to 999999
+		id, err := helper.GenerateOrderCartID(cart.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
+		}
+		purchaseHistory := &model.PurchaseHistory{
+			ID:             id,
+			Date:           item.UpdatedAt.Format("2006-01-02"),
+			Status:         string(item.DeliveryStatus.Status),
+			Items:          []*model.PurchaseHistoryItem{historyItem},
+			TrackingNumber: &trackingNumber,
+		}
 
-	return &cart, nil
+		// Add this PurchaseHistory to the result list
+		purchaseHistories = append(purchaseHistories, purchaseHistory)
+	}
+
+	return purchaseHistories, nil
 }
 
 func (r *queryResolver) GetAllCart(ctx context.Context) ([]*model.VendorOrder, error) {
 	// Define a slice to hold the carts
 	var carts []*model.Cart
-
+	/*vendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	vendorUUID, err := uuid.Parse(*vendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %v", err)
+	}*/
 	// Query all carts from the database and preload the cart items and their associated products and vendors
 	if err := r.DB.Preload("Items.Product.Vendor").Find(&carts).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve carts: %w", err)
 	}
+	/*if err := r.DB.Preload("Items.Product.Vendor").
+	 Joins("JOIN cart_items ON cart_items.cart_id = carts.id").
+	 Joins("JOIN products ON products.id = cart_items.product_id").
+			Where("products.vendor_id = ?", vendorUUID).
+			Find(&carts).Error; err != nil {
+			return nil, fmt.Errorf("failed to retrieve carts: %w", err)
+		}*/
 
 	// Map to hold user names and numbers by their IDs
 	userNames := make(map[string]string)
@@ -331,25 +775,33 @@ func (r *queryResolver) GetAllCart(ctx context.Context) ([]*model.VendorOrder, e
 						TotalOrders:   0,
 					}
 				}
-
+				_, err := helper.GenerateOrderCartID(cart.ID.String())
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
+				}
 				// Create an order for this cart
+				_, err = strconv.ParseFloat(*item.Product.Price, 64)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse product price: %w", err)
+				}
 				order := &model.Order{
-					ID:              cart.ID.String(),
-					CustomerName:    userNames[cart.UserID.String()],
-					CustomerID:      userID[cart.UserID.String()],
+					// ID:              generatedid,
+					// CustomerName:    userNames[cart.UserID.String()],
+					// CustomerID:      userID[cart.UserID.String()],
 					Date:            cart.CreatedAt.Format("2006-01-02"),
 					DeliveryAddress: "123 Example Street", // Example address
 					Status:          "pending",            // Example status
 					PaymentStatus:   "paid",               // Example payment status
 					PaymentMethod:   "Credit Card",        // Example payment method
 					ShippingMethod:  "Standard",           // Example shipping method
-					Items: []*model.OrderItem{
-						{
-							ID:       item.ID.String(),
-							Name:     *item.Product.Name,
-							Quantity: item.Quantity,
-						},
-					},
+					// Items: []*model.OrderItem{
+					// 	{
+					// 		// ID:       item.ID.String(),
+					// 		Name:     *item.Product.Name,
+					// 		Quantity: item.Quantity,
+					// 		Price:    price,
+					// 	},
+					// },
 					EstimatedDeliveryDate: cart.CreatedAt.AddDate(0, 0, 5).Format("2006-01-02"),
 				}
 
@@ -407,9 +859,173 @@ func (r *queryResolver) AllCart(ctx context.Context) ([]*model.Cart, error) {
 	return carts, nil
 }
 
+func (r *queryResolver) GetOrder(ctx context.Context, orderID string) (*model.Order, error) {
+	panic(fmt.Errorf("not implemented: GetOrder - getOrder"))
+}
+
+func (r *queryResolver) GetAllCategoriesLabelsByUser(ctx context.Context) ([]*model.Category, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse the user ID as UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("cart not found: %w", err)
+	}
+
+	// Fetch all cart items associated with the user's cart
+	var cartItems []model.CartItem
+	if err := r.DB.Where("cart_id = ?", cart.ID).Find(&cartItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve cart items: %w", err)
+	}
+
+	var categories []*model.Category
+
+	// Fetch all CartItemGroup associated with the user's cart items
+	// for _, item := range cartItems {
+	// 	var groups []model.CartItemGroup
+	// 	if err := r.DB.Where("cart_item_id = ?", item.ID).Find(&groups).Error; err != nil {
+	// 		return nil, fmt.Errorf("failed to retrieve groups for cart item %s: %w", item.ID.String(), err)
+	// 	}
+
+	// 	// Populate the categories slice from groups
+	// 	for _, group := range groups {
+	// 		category := &model.Category{
+	// 			GroupLabel:             group.GroupLabel,
+	// 			GroupLabelID:           group.ID.String(),
+	// 			QuantityForAGroupLabel: group.QuantityForAGroupLabel,
+	// 		}
+	// 		categories = append(categories, category)
+	// 	}
+	// }
+
+	return categories, nil
+}
+
+func (r *queryResolver) GetgroupLabel(ctx context.Context, label string) (*model.CartItemGroup, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse the user ID as UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("cart not found: %w", err)
+	}
+
+	// Fetch all cart items associated with the user's cart
+	var cartItems []model.CartItem
+	if err := r.DB.Where("cart_id = ?", cart.ID).Find(&cartItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve cart items: %w", err)
+	}
+
+	// Collect the IDs of all cart items
+	var cartItemIDs []uuid.UUID
+	for _, item := range cartItems {
+		cartItemIDs = append(cartItemIDs, item.ID)
+	}
+
+	// Fetch the CartItemGroup that matches the given label and is linked to the cart items via the Group table
+	var cartItemGroup model.CartItemGroup
+	if err := r.DB.Preload("Items").Joins("JOIN groups ON groups.cart_item_group_id = cart_item_groups.id").
+		Where("cart_item_groups.group_label = ? AND groups.cart_item_id IN (?)", label, cartItemIDs).
+		First(&cartItemGroup).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve cart item group: %w", err)
+	}
+
+	return &cartItemGroup, nil
+}
+
+func (r *queryResolver) GetAllgroupLabel(ctx context.Context) ([]*model.CartItemGroup, error) {
+	// Get the user ID from the context
+	userIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID: %v", err)
+	}
+
+	// Parse the user ID as UUID
+	userUUID, err := uuid.Parse(*userIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Fetch the user's cart
+	var cart model.Cart
+	if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
+		return nil, fmt.Errorf("cart not found: %w", err)
+	}
+
+	// Fetch all cart items associated with the user's cart
+	var cartItems []model.CartItem
+	if err := r.DB.Where("cart_id = ?", cart.ID).Find(&cartItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve cart items: %w", err)
+	}
+
+	// Collect the IDs of all cart items
+	var cartItemIDs []uuid.UUID
+	for _, item := range cartItems {
+		cartItemIDs = append(cartItemIDs, item.ID)
+	}
+
+	// Fetch all CartItemGroups linked to the cart items via the Group table (no group_label filtering)
+	// Fetch all CartItemGroups associated with these cart items, avoiding duplicates
+	var cartItemGroups []*model.CartItemGroup
+	if err := r.DB.Preload("Items").Joins("JOIN groups ON groups.cart_item_group_id = cart_item_groups.id").
+		Where("groups.cart_item_id IN (?)", cartItemIDs).
+		Group("cart_item_groups.id").Find(&cartItemGroups).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve cart item groups: %w", err)
+	}
+
+	return cartItemGroups, nil
+}
+
 func (r *Resolver) Cart() generated.CartResolver { return &cartResolver{r} }
 
 func (r *Resolver) CartItem() generated.CartItemResolver { return &cartItemResolver{r} }
 
+func (r *Resolver) CartItemGroup() generated.CartItemGroupResolver { return &cartItemGroupResolver{r} }
+
+func (r *Resolver) DeliveryMetaData() generated.DeliveryMetaDataResolver {
+	return &deliveryMetaDataResolver{r}
+}
+
+func (r *Resolver) DeliveryStatus() generated.DeliveryStatusResolver {
+	return &deliveryStatusResolver{r}
+}
+
+func (r *Resolver) Group() generated.GroupResolver { return &groupResolver{r} }
+
+func (r *Resolver) Order() generated.OrderResolver { return &orderResolver{r} }
+
+func (r *Resolver) OrderItem() generated.OrderItemResolver { return &orderItemResolver{r} }
+
+func (r *Resolver) PurchaseMetaData() generated.PurchaseMetaDataResolver {
+	return &purchaseMetaDataResolver{r}
+}
+
 type cartResolver struct{ *Resolver }
 type cartItemResolver struct{ *Resolver }
+type cartItemGroupResolver struct{ *Resolver }
+type deliveryMetaDataResolver struct{ *Resolver }
+type deliveryStatusResolver struct{ *Resolver }
+type groupResolver struct{ *Resolver }
+type orderResolver struct{ *Resolver }
+type orderItemResolver struct{ *Resolver }
+type purchaseMetaDataResolver struct{ *Resolver }

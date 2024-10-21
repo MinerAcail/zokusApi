@@ -1,5 +1,9 @@
     sudo docker exec -it zokusapi-zukudb-1 psql -U justzoku -d testzoku 
 
+    //delect a table AND ALL RELATED TABLES WHEN USING CASCADE WHEN YOU HAVE Constraint fk_.....
+    DROP TABLE TABLENAME, TABLENAME2 CASCADE;
+    DROP TABLE cart_items, cart_item_groups CASCADE;
+
 delect a table 
 DROP TABLE users ;
 drop all table

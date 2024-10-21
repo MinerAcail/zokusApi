@@ -14,6 +14,8 @@ type Product struct {
 	State             *string        `json:"state,omitempty"`
 	Title             *string        `json:"title,omitempty"`
 	Brand             *string        `json:"brand,omitempty"`
+	Cost  *string       `json:"cost,omitempty"`
+	Stock *string       `json:"stock,omitempty"`
 	ImageUrls         pq.StringArray `gorm:"type:text[]" json:"imageUrls,omitempty"`
 	VendorsBucketName *string        `json:"vendorsBucketName,omitempty"`
 	Vendor            *Vendor        `gorm:"foreignKey:VendorID" json:"vendor,omitempty"`

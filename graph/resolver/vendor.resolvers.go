@@ -458,8 +458,9 @@ func (r *queryResolver) GetProductforVpm(ctx context.Context) (*model.Productfor
 	// Step 5: Calculate total revenue, profit, etc.
 	totalRevenue := 0.0
 	totalProfit := 0.0
-	totalProducts := 0
+	//totalProducts := 0
 	lowStockCount := "0"
+	totalProducts := len(products)
 
 	for _, cart := range carts {
 		for _, item := range cart.Items {
@@ -472,8 +473,8 @@ func (r *queryResolver) GetProductforVpm(ctx context.Context) (*model.Productfor
 
 				// Assuming product cost is available in item.Product.Cost
 				cost := 0.0 // Default cost, adjust as per actual Product model
-				if item.Product.Price != nil {
-					cost, err = strconv.ParseFloat(*item.Product.Price, 64)
+				if item.Product.Cost != nil {
+					cost, err = strconv.ParseFloat(*item.Product.Cost, 64)
 					if err != nil {
 						return nil, fmt.Errorf("invalid product cost for product ID %s: %v", item.Product.ID, err)
 					}
@@ -482,7 +483,8 @@ func (r *queryResolver) GetProductforVpm(ctx context.Context) (*model.Productfor
 				// Calculate revenue and profit
 				totalRevenue += price * float64(item.Quantity)
 				totalProfit += (price - cost) * float64(item.Quantity)
-				totalProducts += item.Quantity
+				//totalProducts += item.Quantity
+				//totalProducts = len(products)
 
 				// Assuming Product has a LowStockThreshold field
 				/*if item.Quantity <= item.Product.LowStockThreshold {
@@ -521,7 +523,12 @@ func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.Ca
 	}
 
 	// Query all carts from the database that belong to the specified vendor
-	if err := r.DB.Preload("Items.Product.Vendor").Find(&carts).Error; err != nil {
+
+	if err := r.DB.Preload("Items.Product.Vendor").
+		Joins("JOIN cart_items ON cart_items.cart_id = carts.id").
+		Joins("JOIN products ON products.id = cart_items.product_id").
+		Where("products.vendor_id = ?", vendorUUID).
+		Find(&carts).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve carts: %w", err)
 	}
 
@@ -576,7 +583,7 @@ func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.Ca
 					OrderID:     cart.ID.String(),
 					Customer:    userNames[cart.UserID.String()],
 					Date:        cart.CreatedAt.Format("2006-01-02"),
-					Status:      "pending",                  // Example static status, update if needed
+					Status:      "pending",                        // Example static status, update if needed
 					TotalAmount: fmt.Sprintf("%.2f", totalAmount), // Total calculated amount, formatted as string
 				}
 
@@ -586,7 +593,6 @@ func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.Ca
 		}
 	}
 
-	// Return the list of CartUsers
 	return cartUsers, nil
 }
 
@@ -603,43 +609,3 @@ func (r *Resolver) Vendor() generated.VendorResolver { return &vendorResolver{r}
 
 type favoriteVendorResolver struct{ *Resolver }
 type vendorResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-func (r *favoriteVendorResolver) UserType(ctx context.Context, obj *model.FavoriteVendor) (model.UserType, error) {
-	panic(fmt.Errorf("not implemented: UserType - userType"))
-}
-func (r *mutationResolver) DeleteAll(ctx context.Context) (*bool, error) {
-	// Begin a transaction
-	tx := r.DB.Begin()
-
-	// Delete all SideSwapperProduct records first to avoid foreign key constraint violations
-	if err := tx.Unscoped().Where("1 = 1").Delete(&model.FavoriteVendor{}).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("could not delete SideSwapperProducts: %v", err)
-	}
-
-	// // Delete all Pricing records related to deleted SideSwapperProducts
-	// if err := tx.Unscoped().Where("1 = 1").Delete(&model.Pricing{}).Error; err != nil {
-	// 	tx.Rollback()
-	// 	return nil, fmt.Errorf("could not delete Pricing: %v", err)
-	// }
-
-	// // Delete all SideSwapper records
-	// if err := tx.Unscoped().Where("1 = 1").Delete(&model.SideSwapper{}).Error; err != nil {
-	// 	tx.Rollback()
-	// 	return nil, fmt.Errorf("could not delete SideSwappers: %v", err)
-	// }
-
-	// Commit the transaction
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("could not commit transaction: %v", err)
-	}
-
-	success := true
-	return &success, nil
-}

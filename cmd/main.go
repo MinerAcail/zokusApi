@@ -53,7 +53,12 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.ProductRequest{},
 		&model.Cart{},
 		&model.CartItem{},
-
+		&model.Order{},	
+		&model.DeliveryMetaData{},
+		&model.DeliveryStatus{},
+		&model.PurchaseMetaData{},
+		&model.CartItemGroup{},
+		&model.Group{},
 	// &model.{},
 	); err != nil {
 		return fmt.Errorf("failed to run AutoMigrate: %w", err)
@@ -66,7 +71,7 @@ func InitPaystack(apiKey string) *paystack.Client {
 	customHttpClient := &http.Client{
 		Timeout: 30 * time.Second,
 	}
-	return paystack.NewClient(apiKey, customHttpClient)			
+	return paystack.NewClient(apiKey, customHttpClient)
 }
 func main() {
 	port := os.Getenv("Port")

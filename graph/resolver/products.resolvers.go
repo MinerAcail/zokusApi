@@ -75,6 +75,12 @@ func (r *mutationResolver) UpdateProductByID(ctx context.Context, productID stri
 	}
 
 	// Update the product fields with the input
+	if input.Cost != nil {
+		product.Cost = input.Cost
+	}
+	if input.Stock != nil {
+		product.Stock = input.Stock
+	}
 	if input.Name != nil {
 		product.Name = input.Name
 	}

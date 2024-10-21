@@ -22,11 +22,22 @@ type CartUser struct {
 	TotalAmount string `json:"totalAmount"`
 }
 
+type Category struct {
+	GroupLabel             string `json:"groupLabel"`
+	GroupLabelID           string `json:"groupLabelId"`
+	QuantityForAGroupLabel int    `json:"quantityForAGroupLabel"`
+}
+
 type CommentInput struct {
 	ProductID       string  `json:"productId"`
 	Content         string  `json:"content"`
 	ParentCommentID *string `json:"parentCommentId,omitempty"`
 }
+
+type CreateOrderInput struct {
+	DeliveryAddress string   `json:"deliveryAddress"`
+	CartItemID      []string `json:"cartItemId"`
+		}
 
 type FavoriteMateData struct {
 	FavoriteProducts     []*FavoriteProduct `json:"favoriteProducts"`
@@ -77,28 +88,6 @@ type NewUser struct {
 	Pin    string `json:"pin"`
 }
 
-type Order struct {
-	ID                    string       `json:"id"`
-	CustomerID            string       `json:"customerId"`
-	CustomerName          string       `json:"customerName"`
-	Date                  string       `json:"date"`
-	DeliveryAddress       string       `json:"deliveryAddress"`
-	Status                string       `json:"status"`
-	Items                 []*OrderItem `json:"items"`
-	PaymentStatus         string       `json:"paymentStatus"`
-	PaymentMethod         string       `json:"paymentMethod"`
-	ShippingMethod        string       `json:"shippingMethod"`
-	TrackingNumber        *string      `json:"trackingNumber,omitempty"`
-	EstimatedDeliveryDate string       `json:"estimatedDeliveryDate"`
-}
-
-type OrderItem struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	Quantity int     `json:"quantity"`
-	Price    float64 `json:"price"`
-}
-
 type ProductInput struct {
 	Name  string       `json:"name"`
 	Price string       `json:"price"`
@@ -113,6 +102,8 @@ type ProductUpdateInput struct {
 	State *ProductState `json:"state,omitempty"`
 	Title *string       `json:"title,omitempty"`
 	Brand *string       `json:"brand,omitempty"`
+	Cost  *string       `json:"cost,omitempty"`
+	Stock *string       `json:"stock,omitempty"`
 }
 
 type ProductforVpm struct {
@@ -173,6 +164,12 @@ type VendorOrder struct {
 	Orders        []*Order `json:"orders"`
 	LastOrderDate string   `json:"lastOrderDate"`
 	TotalOrders   int      `json:"totalOrders"`
+}
+
+type GroupInput struct {
+	GroupLabel    string `json:"groupLabel"`
+	CartItemID    string `json:"cartItemId"`
+	QuantityGroup int    `json:"quantityGroup"`
 }
 
 type Systeminfor struct {
