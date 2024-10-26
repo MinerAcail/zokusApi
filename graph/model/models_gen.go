@@ -37,7 +37,7 @@ type CommentInput struct {
 type CreateOrderInput struct {
 	DeliveryAddress string   `json:"deliveryAddress"`
 	CartItemID      []string `json:"cartItemId"`
-		}
+}
 
 type FavoriteMateData struct {
 	FavoriteProducts     []*FavoriteProduct `json:"favoriteProducts"`

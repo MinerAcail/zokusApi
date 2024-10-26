@@ -45,8 +45,9 @@ func (r *cartItemResolver) CartID(ctx context.Context, obj *model.CartItem) (str
 	return obj.CartID.String(), nil
 }
 
-func (r *cartItemResolver) OrderCartItemID(ctx context.Context, obj *model.CartItem) (string, error) {
-	panic(fmt.Errorf("not implemented: OrderCartItemID - orderCartItemId"))
+func (r *cartItemResolver) OrderCartItemID(ctx context.Context, obj *model.CartItem) (*string, error) {
+	OrderCartItemId := obj.OrderCartItemId.String()
+	return &OrderCartItemId, nil
 }
 
 func (r *cartItemGroupResolver) ID(ctx context.Context, obj *model.CartItemGroup) (string, error) {
@@ -92,16 +93,16 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 		return nil, fmt.Errorf("failed to get user ID: %v", err)
 	}
 
-	// Parse UUID
+	// Parse UUID for user and product
 	userUUID, err := uuid.Parse(*userIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
-	// Parse UUID
 	productUUID, err := uuid.Parse(productID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ID: %w", err)
+		return nil, fmt.Errorf("invalid product ID: %w", err)
 	}
+
 	// Determine the user type (User, Vendor, or SideSwapper)
 	userType := helper.DetermineUserType(r.DB, userUUID)
 	if userType == "" {
@@ -110,10 +111,9 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 
 	// Fetch or create a cart for the user
 	var cart model.Cart
-	// Attempt to fetch the existing cart
+
 	if err := r.DB.Where("user_id = ?", userUUID).First(&cart).Error; err != nil {
 		if gorm.ErrRecordNotFound == err {
-			// No existing cart found, so create a new one
 			cart = model.Cart{
 				UserID:   userUUID,
 				UserType: userType,
@@ -121,30 +121,26 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 			if err := r.DB.Create(&cart).Error; err != nil {
 				return nil, err
 			}
-
 		} else {
-			// Some other error occurred
 			return nil, err
 		}
 	}
 
 	// Fetch the product
 	var product model.Product
-	if err := r.DB.Where("id = ?", productID).First(&product).Error; err != nil {
+	if err := r.DB.Where("id = ?", productUUID).First(&product).Error; err != nil {
 		return nil, fmt.Errorf("product not found: %w", err)
 	}
-	// Log productID and product.ID
 
 	// Check if the item is already in the cart
 	var cartItem model.CartItem
 	if err := r.DB.Where("cart_id = ? AND product_id = ?", cart.ID, product.ID).Preload("Product").First(&cartItem).Error; err == nil {
-		//check if the cartItem is oldeer then 24 hours
+		// Check if cartItem is older than 24 hours
 		if cartItem.CreatedAt.Before(time.Now().Add(-24 * time.Hour)) {
-			// if older then 24 hours, create a new cartItem
 			newCartItem := model.CartItem{
-				CartID:    cart.ID, // Link the CartItem to the Cart
+				CartID:    cart.ID,
 				ProductID: productUUID,
-				Product:   &product, // Ensure product is linked here
+				Product:   &product,
 				Quantity:  quantity,
 			}
 			if err := r.DB.Create(&newCartItem).Error; err != nil {
@@ -153,40 +149,133 @@ func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, 
 			if err := helper.CreateMetaData(r.DB, newCartItem.ID, cart.ID); err != nil {
 				return nil, fmt.Errorf("failed to create meta data: %w", err)
 			}
-
+			// if err := helper.HandleCartItemGrouping(r.DB, &newCartItem); err != nil {
+			// 	return nil, fmt.Errorf("failed to handle cart item grouping: %w", err)
+			// }
 			return &newCartItem, nil
-
 		}
 
-		// If less than 24 hours, update the existing cart item
-		// Update the quantity if the item is already in the cart
-		if err := helper.CreateMetaData(r.DB, cartItem.ID, cart.ID); err != nil {
-			return nil, fmt.Errorf("failed to create meta data: %w", err)
-		}
+		// Update existing cart item
 		cartItem.Quantity += quantity
 		if err := r.DB.Save(&cartItem).Error; err != nil {
 			return nil, err
 		}
-
-		return &cartItem, nil
-
-	} else {
-		// Create a new cart item
-		cartItem = model.CartItem{
-			CartID:    cart.ID, // Link the CartItem to the Cart
-			ProductID: productUUID,
-			Product:   &product, // Ensure product is linked here
-			Quantity:  quantity,
-		}
-
-		if err := r.DB.Create(&cartItem).Error; err != nil {
-			return nil, err
-		}
-
 		if err := helper.CreateMetaData(r.DB, cartItem.ID, cart.ID); err != nil {
 			return nil, fmt.Errorf("failed to create meta data: %w", err)
 		}
+		// if err := helper.HandleCartItemGrouping(r.DB, &cartItem); err != nil {
+		// 	return nil, fmt.Errorf("failed to handle cart item grouping: %w", err)
+		// }
+		return &cartItem, nil
+	}
 
+	// Create a new cart item
+	cartItem = model.CartItem{
+		CartID:    cart.ID,
+		ProductID: productUUID,
+		Product:   &product,
+		Quantity:  quantity,
+	}
+	if err := r.DB.Create(&cartItem).Error; err != nil {
+		return nil, err
+	}
+	if err := helper.CreateMetaData(r.DB, cartItem.ID, cart.ID); err != nil {
+		return nil, fmt.Errorf("failed to create meta data: %w", err)
+	}
+	// if err := helper.HandleCartItemGrouping(r.DB, &cartItem); err != nil {
+	// 	return nil, fmt.Errorf("failed to handle cart item grouping: %w", err)
+	// }
+
+	return &cartItem, nil
+}
+
+func (r *mutationResolver) CleanUpAddItemToCart(ctx context.Context, cartItemID string) (string, error) {
+	// / Parse the cartItemID into UUID
+	cartItemUUID, err := uuid.Parse(cartItemID)
+	if err != nil {
+		return "", fmt.Errorf("invalid CartItemID: %w", err)
+	}
+
+	// Find the CartItem to ensure it exists
+	var cartItem model.CartItem
+	if err := r.DB.Where("id = ?", cartItemUUID).First(&cartItem).Error; err != nil {
+		if gorm.ErrRecordNotFound == err {
+			return "", fmt.Errorf("cart item not found")
+		}
+		return "", fmt.Errorf("failed to find cart item: %w", err)
+	}
+	// Check if the item has a quantity greater than 1
+	if cartItem.Quantity > 1 {
+		// Decrement the quantity by 1
+		cartItem.Quantity -= 1
+		if err := r.DB.Save(&cartItem).Error; err != nil {
+			return "", fmt.Errorf("failed to update cart item quantity: %w", err)
+		}			
+		return "Cart item quantity decremented by 1", nil
+	}
+	// Delete the CartItem from the database
+	if err := r.DB.Delete(&cartItem).Error; err != nil {
+		return "", fmt.Errorf("failed to delete cart item: %w", err)
+	}
+
+	return "Cart item cleaned up successfully", nil
+}
+
+func (r *mutationResolver) AddItemToCartGroupLabel(ctx context.Context, cartItemID string) (*model.CartItem, error) {
+	// Parse the CartItemID as UUID
+	cartItemUUID, err := uuid.Parse(cartItemID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CartItemID: %w", err)
+	}
+
+	// Check if the CartItem exists
+	var cartItem model.CartItem
+	if err := r.DB.Where("id = ?", cartItemUUID).First(&cartItem).Error; err != nil {
+		return nil, fmt.Errorf("cart item not found: %w", err)
+	}
+
+	GroupLabel := "unGroup"
+	QuantityGroup := 1
+
+	// Check if the CartItemGroup exists based on the GroupLabel
+	var cartItemGroup model.CartItemGroup
+	if err := r.DB.Where("group_label = ?", GroupLabel).First(&cartItemGroup).Error; err != nil {
+		// Group does not exist, create a new CartItemGroup
+		cartItemGroup = model.CartItemGroup{
+			GroupLabel: GroupLabel,
+		}
+		if err := r.DB.Create(&cartItemGroup).Error; err != nil {
+			return nil, fmt.Errorf("failed to create new cart item group: %w", err)
+		}
+	}
+
+	// Check if the Group already exists for this CartItemID and CartItemGroupID
+	var existingGroup model.Group
+	if err := r.DB.Where("cart_item_group_id = ? AND cart_item_id = ?", cartItemGroup.ID, cartItem.ID).First(&existingGroup).Error; err == nil {
+		// If group exists, increment the QuantityGroup
+		existingGroup.QuantityGroup += QuantityGroup
+
+		// Save the updated group
+		if err := r.DB.Save(&existingGroup).Error; err != nil {
+			return nil, fmt.Errorf("failed to update existing group: %w", err)
+		}
+	} else {
+		// If group doesn't exist, create a new one
+		newGroup := model.Group{
+			CartItemID:      cartItem.ID,
+			CartItemGroupID: cartItemGroup.ID,
+			QuantityGroup:   QuantityGroup,
+		}
+
+		// Save the new group in the database
+		if err := r.DB.Create(&newGroup).Error; err != nil {
+			return nil, fmt.Errorf("failed to create new group: %w", err)
+		}
+	}
+
+	// Reload the updated CartItem to return it
+	if err := r.DB.Preload("Product").Where("id = ?", cartItem.ID).First(&cartItem).Error; err != nil {
+		return nil, fmt.Errorf("failed to load updated cart item: %w", err)
 	}
 
 	return &cartItem, nil
@@ -266,12 +355,30 @@ func (r *mutationResolver) AddGroupLabel(ctx context.Context, input model.GroupI
 	// Check if the Group already exists for this CartItemID and CartItemGroupID
 	var existingGroup model.Group
 	if err := r.DB.Where("cart_item_group_id = ? AND cart_item_id = ?", cartItemGroup.ID, cartItem.ID).First(&existingGroup).Error; err == nil {
-		// If group exists, increment the QuantityGroup
-		existingGroup.QuantityGroup += input.QuantityGroup
+		// If QuantityGroup is negative
+		if input.QuantityGroup < 0 {
+			if existingGroup.QuantityGroup <= 1 {
+				// Delete the group if QuantityGroup is less than or equal to 1
+				if err := r.DB.Delete(&existingGroup).Error; err != nil {
+					return nil, fmt.Errorf("failed to delete existing group: %w", err)
+				}
+			} else {
+				// Decrement the QuantityGroup
+				existingGroup.QuantityGroup += input.QuantityGroup // input.QuantityGroup is negative here
 
-		// Save the updated group
-		if err := r.DB.Save(&existingGroup).Error; err != nil {
-			return nil, fmt.Errorf("failed to update existing group: %w", err)
+				// Save the updated group
+				if err := r.DB.Save(&existingGroup).Error; err != nil {
+					return nil, fmt.Errorf("failed to update existing group: %w", err)
+				}
+			}
+		} else {
+			// If input.QuantityGroup is positive, increment the QuantityGroup
+			existingGroup.QuantityGroup += input.QuantityGroup
+
+			// Save the updated group
+			if err := r.DB.Save(&existingGroup).Error; err != nil {
+				return nil, fmt.Errorf("failed to update existing group: %w", err)
+			}
 		}
 	} else {
 		// If group doesn't exist, create a new one
@@ -355,10 +462,10 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOr
 
 	// Update each cart item with the newly created order ID
 	for _, cartItem := range linkedCartItems {
-		cartItem.OrderID = orderID
-		cartItem.OrderCartItemId = order.ID
+		cartItem.OrderID = &orderID
+		cartItem.OrderCartItemId = &order.ID
 
-		// Save the updated cart item	
+		// Save the updated cart item
 		if err := r.DB.Save(cartItem).Error; err != nil {
 			return nil, fmt.Errorf("failed to update cart item with ID %s: %w", cartItem.ID, err)
 		}
@@ -679,9 +786,9 @@ func (r *queryResolver) PurchaseHistory(ctx context.Context) ([]*model.PurchaseH
 			return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
 		}
 		purchaseHistory := &model.PurchaseHistory{
-			ID:             id,
-			Date:           item.UpdatedAt.Format("2006-01-02"),
-			Status:         string(item.DeliveryStatus.Status),
+			ID:   id,
+			Date: item.UpdatedAt.Format("2006-01-02"),
+			// Status:         string(item.DeliveryStatus.Status),
 			Items:          []*model.PurchaseHistoryItem{historyItem},
 			TrackingNumber: &trackingNumber,
 		}
@@ -987,7 +1094,7 @@ func (r *queryResolver) GetAllgroupLabel(ctx context.Context) ([]*model.CartItem
 	// Fetch all CartItemGroups linked to the cart items via the Group table (no group_label filtering)
 	// Fetch all CartItemGroups associated with these cart items, avoiding duplicates
 	var cartItemGroups []*model.CartItemGroup
-	if err := r.DB.Preload("Items").Joins("JOIN groups ON groups.cart_item_group_id = cart_item_groups.id").
+	if err := r.DB.Preload("Items.CartItem.Product").Joins("JOIN groups ON groups.cart_item_group_id = cart_item_groups.id").
 		Where("groups.cart_item_id IN (?)", cartItemIDs).
 		Group("cart_item_groups.id").Find(&cartItemGroups).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve cart item groups: %w", err)

@@ -5,8 +5,8 @@ type CartItem {
   cartId: String!
   quantity: Int!
   purchaseMetaData: PurchaseMetaData!
-  orderId: String!
-  orderCartItemId: String!
+  orderId: String
+  orderCartItemId: String
   deliveryStatus: DeliveryStatus!
   deliveryMetaData: DeliveryMetaData!
   createdAt: Time!
@@ -101,6 +101,8 @@ input groupInput {
 }
 extend type Mutation {
   addItemToCart(productId: String!, quantity: Int!): CartItem!
+  CleanUpAddItemToCart(cartItemId: String!): String!
+  addItemToCartGroupLabel( cartItemId: String!): CartItem!
   addCategory(
     groupLabel: String!
     quantityForAGroupLabel: Int!

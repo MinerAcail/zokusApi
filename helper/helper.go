@@ -292,3 +292,46 @@ func GetUserDetails(db *gorm.DB, userUUID uuid.UUID) (userID, userNames, userNum
 	// If no user is found in any of the tables
 	return "", "", "", fmt.Errorf("user not found")
 }
+
+
+
+// handleCartItemGrouping is responsible for handling the grouping of cart items
+func  HandleCartItemGrouping(db *gorm.DB,cartItem *model.CartItem) error {
+	// Check if the CartItemGroup exists based on the GroupLabel
+	var cartItemGroup model.CartItemGroup
+	if err := db.Where("group_label = ?", "unGroup").First(&cartItemGroup).Error; err != nil {
+		// Group does not exist, create a new CartItemGroup
+		cartItemGroup = model.CartItemGroup{
+			GroupLabel: "unGroup",
+		}
+		if err := db.Create(&cartItemGroup).Error; err != nil {
+			return fmt.Errorf("failed to create new cart item group: %w", err)
+		}
+	}
+
+	// Check if the Group already exists for this CartItemID and CartItemGroupID
+	var existingGroup model.Group
+	if err := db.Where("cart_item_group_id = ? AND cart_item_id = ?", cartItemGroup.ID, cartItem.ID).First(&existingGroup).Error; err == nil {
+		// If group exists, increment the QuantityGroup
+		existingGroup.QuantityGroup += 1
+
+		// Save the updated group
+		if err := db.Save(&existingGroup).Error; err != nil {
+			return fmt.Errorf("failed to update existing group: %w", err)
+		}
+	} else {
+		// If group doesn't exist, create a new one
+		newGroup := model.Group{
+			CartItemID:      cartItem.ID,
+			CartItemGroupID: cartItemGroup.ID,
+			QuantityGroup:   1,
+		}
+
+		// Save the new group in the database
+		if err := db.Create(&newGroup).Error; err != nil {
+			return fmt.Errorf("failed to create new group: %w", err)
+		}
+	}
+
+	return nil
+}
