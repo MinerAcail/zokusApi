@@ -325,7 +325,7 @@ func  HandleCartItemGrouping(db *gorm.DB,cartItem *model.CartItem) error {
 			CartItemID:      cartItem.ID,
 			CartItemGroupID: cartItemGroup.ID,
 			QuantityGroup:   1,
-		}
+		}	
 
 		// Save the new group in the database
 		if err := db.Create(&newGroup).Error; err != nil {

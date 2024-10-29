@@ -51,7 +51,7 @@ func PerformMigrations(db *gorm.DB) error {
 		&model.Comment{},
 		&model.UserOrder{},
 		&model.ProductRequest{},
-		&model.Cart{},
+		&model.Cart{},		
 		&model.Order{},
 		&model.CartItem{},
 		&model.DeliveryMetaData{},

@@ -6,6 +6,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -84,6 +85,11 @@ func (r *groupResolver) CartItemID(ctx context.Context, obj *model.Group) (strin
 
 func (r *groupResolver) CartItemGroupID(ctx context.Context, obj *model.Group) (string, error) {
 	return obj.CartItemGroupID.String(), nil
+}
+
+func (r *groupResolver) OrderItemsID(ctx context.Context, obj *model.Group) (*string, error) {
+	id := obj.OrderItemsID.String()
+	return &id, nil
 }
 
 func (r *mutationResolver) AddItemToCart(ctx context.Context, productID string, quantity int) (*model.CartItem, error) {
@@ -210,7 +216,7 @@ func (r *mutationResolver) CleanUpAddItemToCart(ctx context.Context, cartItemID 
 		cartItem.Quantity -= 1
 		if err := r.DB.Save(&cartItem).Error; err != nil {
 			return "", fmt.Errorf("failed to update cart item quantity: %w", err)
-		}			
+		}
 		return "Cart item quantity decremented by 1", nil
 	}
 	// Delete the CartItem from the database
@@ -415,62 +421,96 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOr
 		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
 
+	// Check if an order exists with any of the CartItemIDs and within the last 24 hours
+	var existingOrder model.Order
+	err = r.DB.Joins("JOIN groups ON groups.order_items_id = orders.id").
+		Where("groups.cart_item_id IN ?", input.CartItemID).
+		Order("orders.created_at DESC"). // Order by latest order
+		First(&existingOrder).Error
+
+	orderExists := err == nil // orderExists will be true if we found an existing order
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("error checking existing order: %w", err)
+	}
+
+	// Define the time window (for example, 24 hours or 2 minutes)
+	// timeWindow := 24 * time.Hour
+	timeWindow := 2 * time.Minute
+
+	withinTime := false
+	if orderExists {
+		orderCreatedAt := existingOrder.CreatedAt
+		timeSinceOrder := time.Since(orderCreatedAt)
+		withinTime = timeSinceOrder < timeWindow
+	}
+
+	// Continue with logic based on `withinTime`
+
 	// Fetch user details
 	_, userNames, _, err := helper.GetUserDetails(r.DB, userUUID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user details: %w", err)
 	}
 
-	// Create an empty slice to hold cart items
-	var linkedCartItems []*model.CartItem
-
-	for _, cartItemID := range input.CartItemID {
-		// Fetch the recent cart item by CartItemID
-		var cartItem model.CartItem
-		if err := r.DB.Where("id = ?", cartItemID).First(&cartItem).Error; err != nil {
-			return nil, fmt.Errorf("failed to find cart item with ID %s: %w", cartItemID, err)
+	// If an order exists and is within 24 hours, reuse it; otherwise, create a new order
+	if !orderExists || !withinTime {
+		existingOrder = model.Order{
+			CustomerName:          userNames,
+			CustomerID:            userUUID,
+			Date:                  time.Now().Format("2006-01-02"),
+			DeliveryAddress:       input.DeliveryAddress,
+			Status:                string(model.StatusOrder),
+			PaymentStatus:         string(model.StatusPurchased),
+			PaymentMethod:         string(model.PaymentMethodMomo),
+			ShippingMethod:        string(model.ShippingMethodDelivery),
+			EstimatedDeliveryDate: time.Now().AddDate(0, 0, 2).Format("2006-01-02"),
 		}
 
-		// Link the cart item to the slice
-		linkedCartItems = append(linkedCartItems, &cartItem)
-	}
-
-	// Create the order using user information
-	order := &model.Order{
-		CustomerName:          userNames,
-		CustomerID:            userUUID,
-		Date:                  time.Now().Format("2006-01-02"), // Order creation date
-		DeliveryAddress:       input.DeliveryAddress,
-		Status:                string(model.StatusOrder),
-		PaymentStatus:         string(model.StatusPurchased),
-		PaymentMethod:         string(model.PaymentMethodMomo),
-		ShippingMethod:        string(model.ShippingMethodDelivery),
-		EstimatedDeliveryDate: time.Now().AddDate(0, 0, 2).Format("2006-01-02"), // 2 days from now
-		Items:                 linkedCartItems,                                  // Link all cart items here
-	}
-
-	// Save the new order in the database
-	if err := r.DB.Create(&order).Error; err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	// Generate a unique order cart ID
-	orderID, err := helper.GenerateOrderCartID(order.ID.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
-	}
-
-	// Update each cart item with the newly created order ID
-	for _, cartItem := range linkedCartItems {
-		cartItem.OrderID = &orderID
-		cartItem.OrderCartItemId = &order.ID
-
-		// Save the updated cart item
-		if err := r.DB.Save(cartItem).Error; err != nil {
-			return nil, fmt.Errorf("failed to update cart item with ID %s: %w", cartItem.ID, err)
+		// Save the new order in the database
+		if err := r.DB.Create(&existingOrder).Error; err != nil {
+			return nil, fmt.Errorf("failed to create order: %w", err)
 		}
 	}
-	return order, nil
+
+	// Retrieve CartItems based on CartItemIDs
+	var cartItems []*model.CartItem
+	if err := r.DB.Where("id IN ?", input.CartItemID).Find(&cartItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to find CartItems with CartItemIDs %v: %w", input.CartItemID, err)
+	}
+
+	// Find and update or create Group items associated with each CartItemID
+	var groups []model.Group
+	if err := r.DB.Where("cart_item_id IN ?", input.CartItemID).Find(&groups).Error; err != nil {
+		return nil, fmt.Errorf("failed to find Group items with CartItemIDs %v: %w", input.CartItemID, err)
+	}
+
+	for _, group := range groups {
+		group.OrderItemsID = &existingOrder.ID
+		if err := r.DB.Save(&group).Error; err != nil {
+			return nil, fmt.Errorf("failed to update Group item with ID %s: %w", group.ID, err)
+		}
+	}
+
+	// Generate a unique order cart ID if creating a new order
+	if !orderExists || !withinTime {
+		orderCartID, err := helper.GenerateOrderCartID(existingOrder.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate order cart ID: %w", err)
+		}
+
+		// Update each CartItem with the newly created order ID
+		for _, cartItem := range cartItems {
+			cartItem.OrderID = &orderCartID
+			cartItem.OrderCartItemId = &existingOrder.ID
+
+			// Save the updated CartItem
+			if err := r.DB.Save(cartItem).Error; err != nil {
+				return nil, fmt.Errorf("failed to update CartItem with ID %s: %w", cartItem.ID, err)
+			}
+		}
+	}
+
+	return &existingOrder, nil
 }
 
 func (r *mutationResolver) DecrementItemToCart(ctx context.Context, productID string) (*model.CartItem, error) {
@@ -659,12 +699,16 @@ func (r *orderResolver) CustomerID(ctx context.Context, obj *model.Order) (strin
 	return obj.CustomerID.String(), nil
 }
 
+func (r *orderResolver) OrderItemsID(ctx context.Context, obj *model.Order) ([]string, error) {
+	panic(fmt.Errorf("not implemented: OrderItemsID - orderItemsID"))
+}
+
 func (r *orderItemResolver) ID(ctx context.Context, obj *model.OrderItem) (string, error) {
 	return obj.ID.String(), nil
 }
 
 func (r *purchaseMetaDataResolver) ID(ctx context.Context, obj *model.PurchaseMetaData) (string, error) {
-	return obj.ID.String(), nil
+	return obj.ID.String(), nil	
 }
 
 func (r *purchaseMetaDataResolver) CartItemID(ctx context.Context, obj *model.PurchaseMetaData) (string, error) {
@@ -966,8 +1010,66 @@ func (r *queryResolver) AllCart(ctx context.Context) ([]*model.Cart, error) {
 	return carts, nil
 }
 
-func (r *queryResolver) GetOrder(ctx context.Context, orderID string) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: GetOrder - getOrder"))
+func (r *queryResolver) GetOrder(ctx context.Context, orderItemsID string) (*model.OrderData, error) {
+	// Retrieve the Order based on orderItemsID
+	var order model.Order
+	if err := r.DB.Where("id = ?", orderItemsID).First(&order).Error; err != nil {
+		return nil, fmt.Errorf("failed to find Order with ID %s: %w", orderItemsID, err)
+	}
+
+	// Retrieve related Group items for the given orderItemsID
+	var orderItems []*model.Group
+	if err := r.DB.
+		Where("order_items_id = ?", order.ID).
+		Preload("CartItem").
+		Preload("CartItem.Product").
+		Find(&orderItems).Error; err != nil {
+		return nil, fmt.Errorf("failed to find Group items with orderItemsID %s: %w", orderItemsID, err)
+	}
+
+	// Construct the OrderData response
+	orderData := &model.OrderData{
+		Infor:      &order,
+		OrderItems: orderItems,
+	}
+
+	return orderData, nil
+}
+
+func (r *queryResolver) GetAllOrder(ctx context.Context) ([]*model.OrderData, error) {
+	// Retrieve all orders from the database
+	var orders []*model.Order
+	if err := r.DB.Find(&orders).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %w", err)
+	}
+
+	// Initialize a slice to hold the complete order data
+	var allOrderData []*model.OrderData
+
+	// Iterate over each order and fetch associated Group items and CartItem details
+	for _, order := range orders {
+		// Find Group items related to the current order
+		var orderItems []*model.Group
+		if err := r.DB.
+			Where("order_items_id = ?", order.ID).
+			Preload("CartItem").
+			Preload("CartItem.Product").
+			Preload("CartItem.PurchaseMetaData").
+			Preload("CartItem.DeliveryStatus").
+			Preload("CartItem.DeliveryMetaData").
+			Find(&orderItems).Error; err != nil {
+			return nil, fmt.Errorf("failed to find Group items for order ID %s: %w", order.ID, err)
+		}
+
+		// Append the order and associated items to the OrderData slice
+		orderData := &model.OrderData{
+			Infor:      order,
+			OrderItems: orderItems,
+		}
+		allOrderData = append(allOrderData, orderData)
+	}
+
+	return allOrderData, nil
 }
 
 func (r *queryResolver) GetAllCategoriesLabelsByUser(ctx context.Context) ([]*model.Category, error) {

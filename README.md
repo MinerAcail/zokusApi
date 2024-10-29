@@ -3,7 +3,7 @@
     //delect a table AND ALL RELATED TABLES WHEN USING CASCADE WHEN YOU HAVE Constraint fk_.....
     DROP TABLE TABLENAME, TABLENAME2 CASCADE;
     DROP TABLE cart_items, cart_item_groups CASCADE;
-
+DROP TABLE carts, cart_items, cart_item_groups,delivery_meta_data,delivery_statuses,groups,orders,purchase_meta_data CASCADE;
 delect a table 
 DROP TABLE users ;
 drop all table

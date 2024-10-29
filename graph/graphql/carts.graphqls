@@ -27,8 +27,29 @@ type Group {
   cartItem: CartItem!
   cartItemId: String!
   quantityGroup: Int!
-  cartItemGroup: CartItemGroup! 
+  cartItemGroup: CartItemGroup!
   cartItemGroupID: String!
+  orderItemsID: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type Order {
+  id: String!
+  customerId: String!
+  customerName: String!
+  date: String!
+  deliveryAddress: String!
+  status: String!
+  # items: [CartItem!]!
+  # orderItems: [Group!]!
+orderItems:[Group!]!
+orderItemsID:[String!]!
+  paymentStatus: String!
+  paymentMethod: String!
+  shippingMethod: String!
+  trackingNumber: String
+  estimatedDeliveryDate: String!
   createdAt: Time!
   updatedAt: Time!
 }
@@ -82,6 +103,10 @@ type Category {
   groupLabelId: String!
   quantityForAGroupLabel: Int!
 }
+type OrderData {
+  infor: Order!
+  orderItems: [Group!]!
+}
 extend type Query {
   getUserCart: Cart!
   getUserCartMetaData: [PurchaseMetaData!]!
@@ -89,12 +114,13 @@ extend type Query {
   purchaseHistory: [PurchaseHistory!]!
   getAllCart: [VendorOrder]!
   allCart: [Cart]!
-  getOrder(orderId: String!): Order!
+  getOrder(orderItemsID: String!): OrderData!
+  getAllOrder: [OrderData!]!  
   getAllCategoriesLabelsByUser: [Category!]!
-  getgroupLabel(label:String!):CartItemGroup!
+  getgroupLabel(label: String!): CartItemGroup!
   getAllgroupLabel: [CartItemGroup!]!
 }
-input groupInput {
+input groupInput {  
   groupLabel: String!
   cartItemId: String!
   quantityGroup: Int!
@@ -102,17 +128,15 @@ input groupInput {
 extend type Mutation {
   addItemToCart(productId: String!, quantity: Int!): CartItem!
   CleanUpAddItemToCart(cartItemId: String!): String!
-  addItemToCartGroupLabel( cartItemId: String!): CartItem!
+  addItemToCartGroupLabel(cartItemId: String!): CartItem!
   addCategory(
     groupLabel: String!
     quantityForAGroupLabel: Int!
     cartItemId: String!
   ): CartItemGroup!
-  addGroupLabel(
-    input:groupInput! 
-  ): CartItemGroup!
+  addGroupLabel(input: groupInput!): CartItemGroup!
 
-   createOrder(input: CreateOrderInput!): Order!
+  createOrder(input: CreateOrderInput!): Order!
   decrementItemToCart(productId: String!): CartItem!
   addDeliveryMetaData(
     locationName: String!
@@ -136,31 +160,10 @@ type VendorOrder {
   totalOrders: Int!
 }
 
-
-
 input CreateOrderInput {
   deliveryAddress: String!
   cartItemId: [String!]!
 }
-
-
-type Order {
-  id: String!
-  customerId: String!
-  customerName: String!
-  date: String!
-  deliveryAddress: String!
-  status: String!
-  items: [CartItem!]!
-  paymentStatus: String!
-  paymentMethod: String!
-  shippingMethod: String!
-  trackingNumber: String
-  estimatedDeliveryDate: String!
-}
-
-
-
 
 type OrderItem {
   id: String!

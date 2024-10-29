@@ -88,6 +88,11 @@ type NewUser struct {
 	Pin    string `json:"pin"`
 }
 
+type OrderData struct {
+	Infor      *Order   `json:"infor"`
+	OrderItems []*Group `json:"orderItems"`
+}
+
 type ProductInput struct {
 	Name  string       `json:"name"`
 	Price string       `json:"price"`

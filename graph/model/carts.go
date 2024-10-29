@@ -67,24 +67,26 @@ type CartItem struct {
 	PurchaseMetaData *PurchaseMetaData `json:"purchaseMetaData,omitempty"`
 	DeliveryStatus   DeliveryStatus    `gorm:"foreignKey:CartItemID;constraint:OnDelete:CASCADE;" json:"deliveryStatus,omitempty"`
 	DeliveryMetaData DeliveryMetaData  `gorm:"foreignKey:CartItemID;constraint:OnDelete:CASCADE;" json:"deliveryMetaData,omitempty"`
-
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	UpdatedAt        time.Time         `json:"updatedAt"`
 }
 
 type Order struct {
-	ID                    uuid.UUID   `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
-	CustomerID            uuid.UUID   `gorm:"type:uuid" json:"customerId"`
-	CustomerName          string      `json:"customerName"`
-	Date                  string      `json:"date"`
-	DeliveryAddress       string      `json:"deliveryAddress"`
-	Status                string      `json:"status"`
-	Items                 []*CartItem `gorm:"foreignKey:OrderCartItemId" json:"items,omitempty"` // Use OrderCartItemId as the foreign key
-	PaymentStatus         string      `json:"paymentStatus"`
-	PaymentMethod         string      `json:"paymentMethod"`
-	ShippingMethod        string      `json:"shippingMethod"`
-	TrackingNumber        *string     `json:"trackingNumber,omitempty"`
-	EstimatedDeliveryDate string      `json:"estimatedDeliveryDate"`
+	ID              uuid.UUID   `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
+	CustomerID      uuid.UUID   `gorm:"type:uuid" json:"customerId"`
+	CustomerName    string      `json:"customerName"`
+	Date            string      `json:"date"`
+	DeliveryAddress string      `json:"deliveryAddress"`
+	Status          string      `json:"status"`
+	OrderItems      []*Group    `gorm:"foreignKey:OrderItemsID" json:"orderItems"`
+	OrderItemsID    []uuid.UUID `gorm:"type:uuid" json:"orderItemsID"`
+	PaymentStatus         string    `json:"paymentStatus"`
+	PaymentMethod         string    `json:"paymentMethod"`
+	ShippingMethod        string    `json:"shippingMethod"`
+	TrackingNumber        *string   `json:"trackingNumber,omitempty"`
+	EstimatedDeliveryDate string    `json:"estimatedDeliveryDate"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
 // Group struct represents an item within a group, belonging to a CartItemGroup and a CartItem
@@ -93,7 +95,8 @@ type Group struct {
 	CartItem        *CartItem      `json:"cartItem" gorm:"foreignKey:CartItemID;constraint:OnDelete:CASCADE;"`
 	CartItemID      uuid.UUID      `gorm:"type:uuid" json:"cartItemId"`
 	CartItemGroup   *CartItemGroup `json:"cartItemGroup" gorm:"foreignKey:CartItemGroupID;constraint:OnDelete:CASCADE;"` // Add reference to CartItemGroup
-	CartItemGroupID uuid.UUID      `gorm:"type:uuid" json:"cartItemGroupId"`                // Foreign key for CartItemGroup
+	CartItemGroupID uuid.UUID      `gorm:"type:uuid" json:"cartItemGroupId"`                                             // Foreign key for CartItemGroup
+	OrderItemsID    *uuid.UUID     `gorm:"type:uuid" json:"orderItemsId"`
 	QuantityGroup   int            `json:"quantityGroup"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	UpdatedAt       time.Time      `json:"updatedAt"`
@@ -108,7 +111,7 @@ type CartItemGroup struct {
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-type 	PurchaseMetaData struct {
+type PurchaseMetaData struct {
 	ID         uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key" json:"id"`
 	Status     string    `json:"status"`
 	CartItemID uuid.UUID `gorm:"type:uuid" json:"cartItemId"`
