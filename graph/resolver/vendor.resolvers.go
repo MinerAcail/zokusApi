@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
@@ -508,11 +509,8 @@ func (r *queryResolver) GetProductforVpm(ctx context.Context) (*model.Productfor
 	return productForVpm, nil
 }
 
-func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.CartUser, error) {
-	// Define a slice to hold the carts
-	var carts []*model.Cart
-
-	// Convert vendorId to UUID
+func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.Order, error) {
+	// Retrieve and parse vendor ID
 	vendorIDStr, err := r.Query().GetID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
@@ -522,78 +520,104 @@ func (r *queryResolver) GetCartUsersByVendorID(ctx context.Context) ([]*model.Ca
 		return nil, fmt.Errorf("invalid vendor ID: %v", err)
 	}
 
-	// Query all carts from the database that belong to the specified vendor
-
-	if err := r.DB.Preload("Items.Product.Vendor").
-		Joins("JOIN cart_items ON cart_items.cart_id = carts.id").
-		Joins("JOIN products ON products.id = cart_items.product_id").
-		Where("products.vendor_id = ?", vendorUUID).
-		Find(&carts).Error; err != nil {
-		return nil, fmt.Errorf("failed to retrieve carts: %w", err)
+	// Retrieve orders for the specified vendor ID with product details
+	var orders []*model.Order
+	err = r.DB.Preload("OrderItems", "vendor_id = ?", vendorUUID).
+		Preload("OrderItems.CartItem.Product").
+		Joins("JOIN groups ON orders.id = groups.order_items_id").
+		Where("groups.vendor_id = ?", vendorUUID).
+		Find(&orders).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %v", err)
 	}
 
-	// Map to hold user details (names, IDs, numbers) by their IDs
-	userNames := make(map[string]string)
-
-	for _, cart := range carts {
-		// Retrieve user info from the database based on cart's UserID
-		var user model.User
-		if err := r.DB.Where("id = ?", cart.UserID).First(&user).Error; err == nil {
-			userNames[cart.UserID.String()] = user.Name
-			continue
-		}
-
-		// Check if the user is a vendor or side swapper if it's not a regular user
-		var vendor model.Vendor
-		if err := r.DB.Where("id = ?", cart.UserID).First(&vendor).Error; err == nil {
-			userNames[cart.UserID.String()] = vendor.Name
-			continue
-		}
-		// Check if the user is a vendor or side swapper if it's not a regular user
-		var sideSwapper model.SideSwapper
-		if err := r.DB.Where("id = ?", cart.UserID).First(&sideSwapper).Error; err == nil {
-			userNames[cart.UserID.String()] = sideSwapper.Name
-			continue
-		}
+	// Deduplicate orders based on their IDs
+	uniqueOrdersMap := make(map[string]*model.Order)
+	for _, order := range orders {
+		uniqueOrdersMap[order.ID.String()] = order
 	}
 
-	// Slice to hold the CartUser data
-	var cartUsers []*model.CartUser
-
-	// Iterate over the carts and generate cart users
-	for _, cart := range carts {
-		for _, item := range cart.Items {
-			// Ensure that the product and vendor exist and that the vendor matches the given vendorId
-			if item.Product != nil && item.Product.Vendor != nil && item.Product.Vendor.ID == vendorUUID {
-				// Calculate total amount for this cart
-				var totalAmount float64
-				for _, item := range cart.Items {
-					if item.Product != nil && item.Product.Price != nil {
-						// Assuming Product.Price is a pointer to float64
-						price, err := strconv.ParseFloat(*item.Product.Price, 64)
-						if err != nil {
-							return nil, fmt.Errorf("invalid product price for product ID %s: %v", item.Product.ID, err)
-						}
-						totalAmount += float64(item.Quantity) * price
-					}
-				}
-
-				// Create a CartUser struct for this cart
-				cartUser := &model.CartUser{
-					OrderID:     cart.ID.String(),
-					Customer:    userNames[cart.UserID.String()],
-					Date:        cart.CreatedAt.Format("2006-01-02"),
-					Status:      "pending",                        // Example static status, update if needed
-					TotalAmount: fmt.Sprintf("%.2f", totalAmount), // Total calculated amount, formatted as string
-				}
-
-				// Append the CartUser to the slice
-				cartUsers = append(cartUsers, cartUser)
-			}
-		}
+	// Convert map back to a slice
+	uniqueOrders := make([]*model.Order, 0, len(uniqueOrdersMap))
+	for _, order := range uniqueOrdersMap {
+		uniqueOrders = append(uniqueOrders, order)
 	}
 
-	return cartUsers, nil
+	return uniqueOrders, nil
+}
+
+func (r *queryResolver) GetCalculateOrderGrowthData(ctx context.Context) (*model.GrowthData, error) {
+	// Retrieve and parse vendor ID
+	vendorIDStr, err := r.Query().GetID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vendor ID: %v", err)
+	}
+	vendorUUID, err := uuid.Parse(*vendorIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID: %v", err)
+	}
+
+	// Define the start of the week (Monday)
+	startOfWeek := time.Now().Truncate(24 * time.Hour).Add(-time.Duration(time.Now().Weekday()-1) * 24 * time.Hour)
+	endOfWeek := startOfWeek.Add(7 * 24 * time.Hour)
+
+	// Query for current week orders count
+	var currentWeekOrdersCount int64
+	err = r.DB.Model(&model.Order{}).
+		Joins("JOIN groups ON orders.id = groups.order_items_id").
+		Where("groups.vendor_id = ? AND orders.created_at >= ? AND orders.created_at < ?", vendorUUID, startOfWeek, endOfWeek).
+		Count(&currentWeekOrdersCount).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve current week orders count: %v", err)
+	}
+
+	// Define the previous week date range
+	startOfLastWeek := startOfWeek.Add(-7 * 24 * time.Hour)
+	endOfLastWeek := startOfLastWeek.Add(7 * 24 * time.Hour)
+
+	// Query for last week orders count
+	var lastWeekOrdersCount int64
+	err = r.DB.Model(&model.Order{}).
+		Joins("JOIN groups ON orders.id = groups.order_items_id").
+		Where("groups.vendor_id = ? AND orders.created_at >= ? AND orders.created_at < ?", vendorUUID, startOfLastWeek, endOfLastWeek).
+		Count(&lastWeekOrdersCount).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve last week orders count: %v", err)
+	}
+
+	// Query for total orders count (all time)
+	var totalOrdersCount int64
+	err = r.DB.Model(&model.Order{}).
+		Joins("JOIN groups ON orders.id = groups.order_items_id").
+		Where("groups.vendor_id = ?", vendorUUID).
+		Count(&totalOrdersCount).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve total orders count: %v", err)
+	}
+
+	// Calculate growth percentage
+	var growthPercentage float64
+	if lastWeekOrdersCount > 0 {
+		growthPercentage = float64(currentWeekOrdersCount-lastWeekOrdersCount) / float64(lastWeekOrdersCount) * 100
+	} else {
+		growthPercentage = 100 // If there were no orders last week, assume 100% growth
+	}
+
+	// Create GrowthData struct with current week order count, total orders, and growth percentage
+	growthData := &model.GrowthData{
+		TotalOrders: fmt.Sprintf("%d", totalOrdersCount),                     // Total orders for the vendor
+		Orders:      fmt.Sprintf("%d", currentWeekOrdersCount),               // Current week orders
+		Percentage:  fmt.Sprintf("+%.0f%% from last week", growthPercentage), // Growth percentage
+	}
+
+	return growthData, nil
+}
+
+// GrowthData struct to represent growth statistics
+type GrowthData struct {
+	TotalOrders string `json:"totalOrders"` // Total orders over the vendor's lifetime
+	Orders      string `json:"orders"`      // Current week orders
+	Percentage  string `json:"percentage"`  // Growth percentage
 }
 
 func (r *vendorResolver) ID(ctx context.Context, obj *model.Vendor) (string, error) {

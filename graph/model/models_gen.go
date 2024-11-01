@@ -19,6 +19,8 @@ type CartUser struct {
 	Customer    string `json:"customer"`
 	Date        string `json:"date"`
 	Status      string `json:"status"`
+	Product     string `json:"product"`
+	Quantity    string `json:"quantity"`
 	TotalAmount string `json:"totalAmount"`
 }
 
@@ -36,6 +38,7 @@ type CommentInput struct {
 
 type CreateOrderInput struct {
 	DeliveryAddress string   `json:"deliveryAddress"`
+	MomoNumber      string   `json:"momoNumber"`
 	CartItemID      []string `json:"cartItemId"`
 }
 
@@ -50,6 +53,12 @@ type File struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Content string `json:"content"`
+}
+
+type GrowthData struct {
+	TotalOrders string `json:"totalOrders"`
+	Orders      string `json:"orders"`
+	Percentage  string `json:"percentage"`
 }
 
 type ImageFiles struct {

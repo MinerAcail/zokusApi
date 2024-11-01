@@ -4,11 +4,11 @@ type CartItem {
   productId: String!
   cartId: String!
   quantity: Int!
-  purchaseMetaData: PurchaseMetaData!
+  # purchaseMetaData: PurchaseMetaData!
   orderId: String
   orderCartItemId: String
-  deliveryStatus: DeliveryStatus!
-  deliveryMetaData: DeliveryMetaData!
+  # deliveryStatus: DeliveryStatus!
+  # deliveryMetaData: DeliveryMetaData!
   createdAt: Time!
   updatedAt: Time!
 }
@@ -30,6 +30,7 @@ type Group {
   cartItemGroup: CartItemGroup!
   cartItemGroupID: String!
   orderItemsID: String
+  vendorId: String
   createdAt: Time!
   updatedAt: Time!
 }
@@ -41,10 +42,11 @@ type Order {
   date: String!
   deliveryAddress: String!
   status: String!
-  # items: [CartItem!]!
-  # orderItems: [Group!]!
-orderItems:[Group!]!
-orderItemsID:[String!]!
+  orderItems: [Group!]!
+  locationName: String
+  momoNumber: String
+  latitude: String
+  longitude: String
   paymentStatus: String!
   paymentMethod: String!
   shippingMethod: String!
@@ -115,12 +117,14 @@ extend type Query {
   getAllCart: [VendorOrder]!
   allCart: [Cart]!
   getOrder(orderItemsID: String!): OrderData!
-  getAllOrder: [OrderData!]!  
+  getAllOrder: [OrderData!]!
+  orderHistory: [Order!]!
+  getVendorId(cartItemId: String!): String!
   getAllCategoriesLabelsByUser: [Category!]!
   getgroupLabel(label: String!): CartItemGroup!
   getAllgroupLabel: [CartItemGroup!]!
 }
-input groupInput {  
+input groupInput {
   groupLabel: String!
   cartItemId: String!
   quantityGroup: Int!
@@ -162,6 +166,7 @@ type VendorOrder {
 
 input CreateOrderInput {
   deliveryAddress: String!
+  momoNumber: String!
   cartItemId: [String!]!
 }
 

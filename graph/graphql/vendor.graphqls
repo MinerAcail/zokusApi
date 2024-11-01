@@ -44,13 +44,23 @@ extend type Query {
   getAllFavoriteVendors: FavoriteVendorMateData!
 
   getProductforVPM:ProductforVPM
-  getCartUsersByVendorId: [CartUser!]!
+  getCartUsersByVendorId: [Order!]!
+  getCalculateOrderGrowthData:GrowthData!     
+}
+
+type GrowthData{        
+  totalOrders:String!
+  orders:String!
+  percentage:String!
 }
 type CartUser {
   orderId: String!
   customer: String!
   date: String!
   status: String!
+  product:String!
+  quantity:String!
+
   totalAmount: String!
 }
 extend type Mutation {
